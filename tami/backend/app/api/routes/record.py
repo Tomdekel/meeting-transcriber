@@ -135,17 +135,35 @@ async def stop_recording(recording_id: str) -> JSONResponse:
     Returns:
         Final recording metadata and upload ID
     """
-    if recording_id not in active_recordings:
+    # Check if session exists in memory
+    session = active_recordings.get(recording_id)
+
+    # Fallback: check if recording directory exists
+    from app.core.config import settings
+    recording_dir = settings.UPLOAD_DIR / recording_id
+
+    if not session and not recording_dir.exists():
+        logger.error(f"Recording session not found: {recording_id}")
+        logger.error(f"Active recordings: {list(active_recordings.keys())}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Recording session not found"
         )
 
-    session = active_recordings[recording_id]
+    # If session not in memory but directory exists, reconstruct it
+    if not session and recording_dir.exists():
+        logger.warning(f"Reconstructing session {recording_id} from filesystem")
+        chunk_files = list(recording_dir.glob("chunk_*.webm"))
+        session = {
+            "id": recording_id,
+            "status": "recording",
+            "start_time": datetime.now().isoformat(),
+            "chunks_received": len(chunk_files),
+            "total_size": sum(f.stat().st_size for f in chunk_files)
+        }
+        active_recordings[recording_id] = session
 
     try:
-        from app.core.config import settings
-        recording_dir = settings.UPLOAD_DIR / recording_id
         output_file = recording_dir / "recording.wav"
 
         # Get all chunk files
