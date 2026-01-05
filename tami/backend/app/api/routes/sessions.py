@@ -10,6 +10,7 @@ from app.db import db
 from app.schemas.session import (
     SessionResponse,
     SessionListResponse,
+    SessionUpdate,
     SpeakerUpdate
 )
 from app.schemas.transcription import (
@@ -58,6 +59,7 @@ async def list_sessions(
             sessions=[
                 SessionResponse(
                     id=s.id,
+                    title=s.title,
                     userId=s.userId,
                     audioFileName=s.audioFileName,
                     audioFileUrl=s.audioFileUrl,
@@ -105,6 +107,7 @@ async def get_session(session_id: str):
 
         return SessionResponse(
             id=session.id,
+            title=session.title,
             userId=session.userId,
             audioFileName=session.audioFileName,
             audioFileUrl=session.audioFileUrl,
@@ -122,6 +125,71 @@ async def get_session(session_id: str):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Get session failed: {str(e)}"
+        )
+
+
+@router.patch("/sessions/{session_id}", response_model=SessionResponse)
+async def update_session(session_id: str, update_data: SessionUpdate):
+    """Update session metadata (title, context, language, status).
+
+    Args:
+        session_id: Session ID
+        update_data: Fields to update
+
+    Returns:
+        Updated session
+    """
+    try:
+        # Verify session exists
+        session = await db.session.find_unique(
+            where={"id": session_id}
+        )
+
+        if not session:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Session not found"
+            )
+
+        # Build update dict from non-None fields
+        updates = {}
+        if update_data.title is not None:
+            updates["title"] = update_data.title
+        if update_data.context is not None:
+            updates["context"] = update_data.context
+        if update_data.language is not None:
+            updates["language"] = update_data.language
+        if update_data.status is not None:
+            updates["status"] = update_data.status
+
+        # Update session
+        updated_session = await db.session.update(
+            where={"id": session_id},
+            data=updates
+        )
+
+        logger.info(f"Session {session_id} updated")
+
+        return SessionResponse(
+            id=updated_session.id,
+            title=updated_session.title,
+            userId=updated_session.userId,
+            audioFileName=updated_session.audioFileName,
+            audioFileUrl=updated_session.audioFileUrl,
+            context=updated_session.context,
+            language=updated_session.language,
+            status=updated_session.status,
+            createdAt=updated_session.createdAt,
+            updatedAt=updated_session.updatedAt
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Update session failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Update failed: {str(e)}"
         )
 
 

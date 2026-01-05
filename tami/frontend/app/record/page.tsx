@@ -13,10 +13,33 @@ export default function RecordPage() {
   const [error, setError] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [recordingId, setRecordingId] = useState<string>("");
+  const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
+  const [recordingMode, setRecordingMode] = useState<"microphone" | "system">("microphone");
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Enumerate audio devices on mount
+  useEffect(() => {
+    const getDevices = async () => {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const audioInputs = devices.filter((device) => device.kind === "audioinput");
+        setAudioDevices(audioInputs);
+
+        // Set default device
+        if (audioInputs.length > 0 && !selectedDeviceId) {
+          setSelectedDeviceId(audioInputs[0].deviceId);
+        }
+      } catch (err) {
+        console.error("Failed to enumerate devices:", err);
+      }
+    };
+
+    getDevices();
+  }, []);
 
   // Format time as MM:SS
   const formatTime = (seconds: number) => {
@@ -30,14 +53,42 @@ export default function RecordPage() {
     try {
       setError("");
 
-      // Request microphone permission
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          sampleRate: 44100,
-        },
-      });
+      let stream: MediaStream;
+
+      if (recordingMode === "microphone") {
+        // Microphone mode - for in-person meetings
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: selectedDeviceId
+            ? {
+                deviceId: { exact: selectedDeviceId },
+                echoCancellation: true,
+                noiseSuppression: true,
+                sampleRate: 44100,
+              }
+            : {
+                echoCancellation: true,
+                noiseSuppression: true,
+                sampleRate: 44100,
+              },
+        });
+      } else {
+        // System audio mode - for online meetings
+        stream = await navigator.mediaDevices.getDisplayMedia({
+          audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            sampleRate: 44100,
+          } as any,
+          video: {
+            width: 1,
+            height: 1,
+            frameRate: 1,
+          } as any,
+        });
+
+        // Stop video track immediately (we only need audio)
+        stream.getVideoTracks().forEach((track) => track.stop());
+      }
 
       // Initialize backend recording session
       const response = await startRecording();
@@ -75,16 +126,6 @@ export default function RecordPage() {
       mediaRecorder.start(1000); // Capture in 1-second chunks
       setIsRecording(true);
       setRecordingTime(0);
-
-      // Start timer
-      console.log("Starting recording timer...");
-      timerRef.current = setInterval(() => {
-        console.log("Timer tick");
-        setRecordingTime((prev) => {
-          console.log("Current recording time:", prev);
-          return prev + 1;
-        });
-      }, 1000);
     } catch (err: any) {
       if (err.name === "NotAllowedError") {
         setError("נא לאפשר גישה למיקרופון בהגדרות הדפדפן");
@@ -104,21 +145,37 @@ export default function RecordPage() {
       // Stop media recorder
       mediaRecorderRef.current.stop();
 
-      // Stop timer
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-
       // Stop all tracks
       mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
 
       setIsRecording(false);
 
-      // Wait a moment for chunks to finish uploading
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Wait for final chunk to upload with longer timeout
+      await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      // Finalize recording on backend
-      const uploadResponse = await stopRecording(recordingId);
+      // Finalize recording on backend with retry logic
+      const maxRetries = 3;
+      let uploadResponse;
+      let lastError;
+
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          uploadResponse = await stopRecording(recordingId);
+          break; // Success - exit retry loop
+        } catch (err) {
+          lastError = err;
+          console.error(`Stop recording attempt ${attempt + 1} failed:`, err);
+
+          if (attempt < maxRetries - 1) {
+            // Wait before retrying (exponential backoff)
+            await new Promise((resolve) => setTimeout(resolve, 2000 * (attempt + 1)));
+          }
+        }
+      }
+
+      if (!uploadResponse) {
+        throw lastError || new Error("Failed to stop recording after multiple attempts");
+      }
 
       // Start transcription
       const transcriptionResponse = await startTranscription({
@@ -136,6 +193,23 @@ export default function RecordPage() {
       setIsProcessing(false);
     }
   };
+
+  // Recording timer - updates every second when recording
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout | null = null;
+
+    if (isRecording) {
+      intervalId = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [isRecording]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -193,6 +267,94 @@ export default function RecordPage() {
                 className="input min-h-[120px] resize-y"
                 rows={4}
               />
+            </div>
+          )}
+
+          {/* Recording Source Selection */}
+          {!isRecording && !isProcessing && (
+            <div className="card space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold text-text-primary mb-2">
+                  מקור ההקלטה
+                </h3>
+                <p className="text-sm text-text-secondary mb-4">
+                  בחר את מקור האודיו להקלטה
+                </p>
+              </div>
+
+              {/* Mode Selection */}
+              <div className="space-y-3">
+                <label className="flex items-center gap-3 p-4 border-2 border-border rounded-lg cursor-pointer hover:border-primary transition-colors">
+                  <input
+                    type="radio"
+                    name="recordingMode"
+                    value="microphone"
+                    checked={recordingMode === "microphone"}
+                    onChange={() => setRecordingMode("microphone")}
+                    className="w-5 h-5 text-primary"
+                  />
+                  <div className="flex-1">
+                    <div className="font-semibold text-text-primary">מיקרופון (פגישה פרונטלית)</div>
+                    <div className="text-sm text-text-secondary">הקלטת פגישה שמתקיימת ליד המחשב</div>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 p-4 border-2 border-border rounded-lg cursor-pointer hover:border-primary transition-colors">
+                  <input
+                    type="radio"
+                    name="recordingMode"
+                    value="system"
+                    checked={recordingMode === "system"}
+                    onChange={() => setRecordingMode("system")}
+                    className="w-5 h-5 text-primary"
+                  />
+                  <div className="flex-1">
+                    <div className="font-semibold text-text-primary">אודיו מערכת (פגישה מקוונת)</div>
+                    <div className="text-sm text-text-secondary">
+                      הקלטת אודיו מזום, מיט, ווטסאפ ועוד (תידרש שיתוף מסך)
+                    </div>
+                  </div>
+                </label>
+              </div>
+
+              {/* Device Selection - Only for Microphone Mode */}
+              {recordingMode === "microphone" && audioDevices.length > 0 && (
+                <div className="space-y-2">
+                  <label htmlFor="audioDevice" className="block text-sm font-medium text-text-primary">
+                    בחר מכשיר אודיו
+                  </label>
+                  <select
+                    id="audioDevice"
+                    value={selectedDeviceId}
+                    onChange={(e) => setSelectedDeviceId(e.target.value)}
+                    className="input w-full"
+                  >
+                    {audioDevices.map((device) => (
+                      <option key={device.deviceId} value={device.deviceId}>
+                        {device.label || `מיקרופון ${device.deviceId.slice(0, 8)}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* System Audio Info */}
+              {recordingMode === "system" && (
+                <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <svg className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                    <div className="text-sm text-text-primary">
+                      <p className="font-semibold mb-1">איך זה עובד?</p>
+                      <p className="text-text-secondary">
+                        הדפדפן יבקש ממך לשתף מסך/חלון. בחר בטאב של הפגישה (זום, מיט וכו׳) וה-אודיו יוקלט.
+                        המשתתפים האחרים בפגישה לא יראו שאתה משתף מסך.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

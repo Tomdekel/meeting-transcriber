@@ -13,6 +13,7 @@ import ChatBox from "@/components/ChatBox";
 import SpeakerEditor from "@/components/SpeakerEditor";
 import LoadingSkeleton from "@/components/LoadingSkeleton";
 import ErrorMessage from "@/components/ErrorMessage";
+import MeetingAudioPlayer from "@/components/MeetingAudioPlayer";
 
 interface SessionStatus {
   sessionId: string;
@@ -404,29 +405,10 @@ export default function SessionPage() {
 
           {/* Audio Player */}
           {session.audioFileUrl && (
-            <div className="mt-4 bg-surface rounded-lg p-4 border border-border">
-              <audio
-                controls
-                className="w-full"
-                preload="metadata"
-                style={{
-                  height: '40px',
-                }}
-              >
-                <source
-                  src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}${session.audioFileUrl}`}
-                  type="audio/wav"
-                />
-                <source
-                  src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}${session.audioFileUrl}`}
-                  type="audio/mp4"
-                />
-                <source
-                  src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}${session.audioFileUrl}`}
-                  type="audio/mpeg"
-                />
-                הדפדפן שלך לא תומך בהשמעת אודיו.
-              </audio>
+            <div className="mt-4">
+              <MeetingAudioPlayer
+                audioUrl={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}${session.audioFileUrl}`}
+              />
             </div>
           )}
         </div>
@@ -490,7 +472,7 @@ export default function SessionPage() {
         {session.transcript && session.transcript.segments.length > 0 && (
           <div className="bg-surface rounded-lg shadow-lg p-6 mb-6">
             <h3 className="font-semibold text-text-primary mb-4">תמלול</h3>
-            <div className="max-h-[600px] overflow-y-auto space-y-4 px-2">
+            <div className="max-h-[70vh] overflow-y-auto space-y-4 px-2 scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent">
               {session.transcript.segments.map((segment, idx) => {
                 const colors = getSpeakerColor(segment.speakerId, speakerColorMap);
                 const hasTimestamp = segment.startTime > 0;

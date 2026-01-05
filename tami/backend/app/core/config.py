@@ -36,8 +36,12 @@ class Settings(BaseSettings):
     SESSION_CLEANUP_DAYS: int = 30  # Delete sessions older than 30 days
 
     # Transcription
-    DEFAULT_TRANSCRIPTION_PROVIDER: str = "whisper"
-    DEFAULT_TRANSCRIPTION_MODEL: str = "whisper-1"
+    DEFAULT_TRANSCRIPTION_PROVIDER: str = "ivrit"  # Changed from "whisper" to "ivrit"
+    DEFAULT_TRANSCRIPTION_MODEL: str = "ivrit-ai/whisper-large-v3-turbo-ct2"
+
+    # Ivrit Configuration
+    IVRIT_API_KEY: Optional[str] = None
+    IVRIT_ENDPOINT_ID: Optional[str] = None
 
     # Summarization
     DEFAULT_SUMMARY_MODEL: str = "gpt-4o-mini"

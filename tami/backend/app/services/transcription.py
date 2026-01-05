@@ -9,7 +9,7 @@ from loguru import logger
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent.parent))
 
 from src.transcription.whisper import WhisperTranscriber
-# from src.transcription.ivrit import IvritTranscriber  # TODO: Implement Ivrit integration
+from src.transcription.ivrit import IvritTranscriber
 from src.audio.processor import AudioProcessor
 from src.diarization.speaker_labeler import SpeakerLabeler
 from src.utils.models import TranscriptResult
@@ -29,7 +29,8 @@ class TranscriptionService:
         provider: str,
         model: str,
         api_key: str,
-        participants: Optional[List[str]] = None
+        participants: Optional[List[str]] = None,
+        endpoint_id: Optional[str] = None
     ) -> TranscriptResult:
         """Transcribe audio file.
 
@@ -39,6 +40,7 @@ class TranscriptionService:
             model: Model name
             api_key: API key for the provider
             participants: List of participant names for speaker labeling
+            endpoint_id: Endpoint ID (required for Ivrit provider)
 
         Returns:
             TranscriptResult with segments
@@ -57,10 +59,12 @@ class TranscriptionService:
             # Create transcriber based on provider
             if provider.lower() == "whisper":
                 transcriber = WhisperTranscriber(api_key=api_key, model=model)
-            # elif provider.lower() == "ivrit":
-            #     transcriber = IvritTranscriber(api_key=api_key, model=model)
+            elif provider.lower() == "ivrit":
+                if not endpoint_id:
+                    raise ValueError("endpoint_id is required for Ivrit provider")
+                transcriber = IvritTranscriber(api_key=api_key, endpoint_id=endpoint_id, model=model)
             else:
-                raise ValueError(f"Unsupported transcription provider: {provider}. Only 'whisper' is currently supported.")
+                raise ValueError(f"Unsupported transcription provider: {provider}. Supported providers: 'whisper', 'ivrit'")
 
             # Validate configuration
             transcriber.validate_config()

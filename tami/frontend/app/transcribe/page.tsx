@@ -74,8 +74,8 @@ export default function TranscribePage() {
       const transcriptionResponse = await startTranscription({
         uploadId: uploadResponse.uploadId,
         context: context.trim(),
-        transcriptionProvider: settings?.transcriptionProvider || "whisper",
-        transcriptionModel: settings?.transcriptionModel || "whisper-1",
+        transcriptionProvider: settings?.transcriptionProvider || "ivrit",
+        transcriptionModel: settings?.transcriptionModel || "ivrit-ai/whisper-large-v3-turbo-ct2",
         summaryModel: settings?.summaryModel || "gpt-4o-mini",
       });
 

@@ -12,7 +12,9 @@ interface Settings {
 }
 
 const TRANSCRIPTION_MODELS = [
-  { value: "whisper-1", label: "OpenAI Whisper (מומלץ)" },
+  { value: "ivrit-ai/whisper-large-v3-turbo-ct2", label: "Ivrit Whisper v3 Turbo (מומלץ - עם זיהוי דוברים)" },
+  { value: "ivrit-ai/whisper-large-v3-ct2", label: "Ivrit Whisper v3 Large (איכות מקסימלית)" },
+  { value: "whisper-1", label: "OpenAI Whisper (ללא זיהוי דוברים)" },
 ];
 
 const SUMMARY_MODELS = [
@@ -31,8 +33,8 @@ export default function SettingsPage() {
   const router = useRouter();
   const [settings, setSettings] = useState<Settings>({
     openaiApiKey: "",
-    transcriptionProvider: "whisper",
-    transcriptionModel: "whisper-1",
+    transcriptionProvider: "ivrit",
+    transcriptionModel: "ivrit-ai/whisper-large-v3-turbo-ct2",
     summaryModel: "gpt-4o-mini",
     chatModel: "gpt-4o-mini",
   });
@@ -199,7 +201,11 @@ export default function SettingsPage() {
             </label>
             <select
               value={settings.transcriptionModel}
-              onChange={(e) => setSettings({ ...settings, transcriptionModel: e.target.value })}
+              onChange={(e) => {
+                const model = e.target.value;
+                const provider = model.startsWith("ivrit-ai/") ? "ivrit" : "whisper";
+                setSettings({ ...settings, transcriptionModel: model, transcriptionProvider: provider });
+              }}
               className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             >
               {TRANSCRIPTION_MODELS.map((model) => (
@@ -209,7 +215,7 @@ export default function SettingsPage() {
               ))}
             </select>
             <p className="text-sm text-text-tertiary mt-1">
-              Whisper תומך בעברית ברמה גבוהה
+              Ivrit מספק תמלול מדויק בעברית עם זיהוי דוברים אוטומטי
             </p>
           </div>
 

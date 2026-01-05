@@ -20,6 +20,8 @@ class SessionCreate(SessionBase):
 
 class SessionUpdate(BaseModel):
     """Schema for updating a session."""
+    title: Optional[str] = None
+    context: Optional[str] = None
     status: Optional[str] = None
     language: Optional[str] = None
 
@@ -32,6 +34,7 @@ class SpeakerUpdate(BaseModel):
 class SessionResponse(SessionBase):
     """Schema for session response."""
     id: str
+    title: Optional[str]
     userId: Optional[str]
     audioFileUrl: str
     status: str

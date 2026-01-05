@@ -56,12 +56,16 @@ async def process_transcription(
         logger.info(f"Processing transcription for session {session_id}")
 
         # Transcribe audio
+        # Get endpoint_id from settings if using Ivrit provider
+        endpoint_id = settings.IVRIT_ENDPOINT_ID if provider.lower() == "ivrit" else None
+
         transcript_result = await transcription_service.transcribe_audio(
             audio_path=audio_path,
             provider=provider,
             model=model,
             api_key=api_key,
-            participants=participants
+            participants=participants,
+            endpoint_id=endpoint_id
         )
 
         # Refine transcript using GPT-4o (post-processing with context)
@@ -89,7 +93,7 @@ async def process_transcription(
             await db.transcriptsegment.create(
                 data={
                     "transcriptId": transcript_record.id,
-                    "speakerId": segment.speaker.lower().replace(" ", "_") if segment.speaker else f"speaker_{idx % 3 + 1}",
+                    "speakerId": segment.speaker.lower().replace(" ", "_") if segment.speaker else f"speaker_{(idx % 10) + 1}",
                     "speakerName": segment.speaker if segment.speaker and segment.speaker != "Unknown" else None,
                     "text": segment.text,
                     "startTime": segment.start_time,
@@ -196,10 +200,13 @@ async def transcribe(
 
         logger.info(f"Created session {session.id} for transcription")
 
-        # Get API key (for now, we'll need to pass it in the request or get from user settings)
+        # Get API key based on provider
         # TODO: Get API key from user settings in database
-        # For now, use the API key from environment variable
-        api_key = settings.OPENAI_API_KEY or settings.SECRET_KEY  # Fallback to SECRET_KEY if not set
+        # For now, use the API key from environment variable based on provider
+        if request.transcriptionProvider.lower() == "ivrit":
+            api_key = settings.IVRIT_API_KEY or settings.SECRET_KEY
+        else:
+            api_key = settings.OPENAI_API_KEY or settings.SECRET_KEY
 
         # Start background transcription
         background_tasks.add_task(

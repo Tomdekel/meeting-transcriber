@@ -33,6 +33,7 @@ model Session {
   id               String        @id @default(cuid())
   userId           String?
   user             User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  title            String?       // Optional custom title for the session
   audioFileName    String
   audioFileUrl     String
   context          String

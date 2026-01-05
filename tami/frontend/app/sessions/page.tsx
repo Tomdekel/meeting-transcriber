@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { listSessions, Session } from "@/lib/api";
+import { listSessions, deleteSession, updateSession, Session } from "@/lib/api";
 import LoadingSkeleton from "@/components/LoadingSkeleton";
 import EmptyState from "@/components/EmptyState";
 import ErrorMessage from "@/components/ErrorMessage";
@@ -13,10 +13,19 @@ export default function SessionsPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deletingSession, setDeletingSession] = useState<Session | null>(null);
+  const [editingSession, setEditingSession] = useState<Session | null>(null);
+  const [editTitle, setEditTitle] = useState("");
 
   useEffect(() => {
     loadSessions();
   }, []);
+
+  useEffect(() => {
+    if (editingSession) {
+      setEditTitle(editingSession.title || editingSession.audioFileName);
+    }
+  }, [editingSession]);
 
   const loadSessions = async () => {
     try {
@@ -189,7 +198,7 @@ export default function SessionsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-4 mb-2">
                       <h3 className="text-lg font-semibold text-text-primary truncate">
-                        {session.audioFileName}
+                        {session.title || session.audioFileName}
                       </h3>
                       {getStatusBadge(session.status)}
                     </div>
@@ -216,8 +225,39 @@ export default function SessionsPage() {
                     </div>
                   </div>
 
-                  {/* Arrow */}
-                  <div className="flex-shrink-0">
+                  {/* Actions */}
+                  <div className="flex-shrink-0 flex items-center gap-2">
+                    {/* Edit button */}
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setEditingSession(session);
+                      }}
+                      className="p-2 text-text-tertiary hover:text-primary transition-colors rounded-lg hover:bg-primary/10"
+                      title="ערוך שם"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+
+                    {/* Delete button */}
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setDeletingSession(session);
+                      }}
+                      className="p-2 text-text-tertiary hover:text-error transition-colors rounded-lg hover:bg-error/10"
+                      title="מחק פגישה"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+
+                    {/* Arrow */}
                     <svg className="w-5 h-5 text-text-tertiary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                     </svg>
@@ -234,6 +274,96 @@ export default function SessionsPage() {
             <p className="text-sm text-text-tertiary">
               מציג {sessions.length} {sessions.length === 1 ? "פגישה" : "פגישות"}
             </p>
+          </div>
+        )}
+
+        {/* Edit Meeting Name Modal */}
+        {editingSession && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-surface rounded-lg p-6 max-w-md w-full shadow-xl">
+              <h3 className="text-xl font-bold text-text-primary mb-4">ערוך שם פגישה</h3>
+
+              <input
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="w-full px-4 py-2 bg-background border border-border rounded-lg text-text-primary focus:outline-none focus:ring-2 focus:ring-primary mb-4"
+                placeholder="שם הפגישה..."
+                autoFocus
+              />
+
+              <div className="flex gap-3">
+                <button
+                  onClick={async () => {
+                    try {
+                      await updateSession(editingSession.id, { title: editTitle });
+                      await loadSessions();
+                      setEditingSession(null);
+                    } catch (err) {
+                      setError("נכשל בעדכון שם הפגישה");
+                      setEditingSession(null);
+                    }
+                  }}
+                  className="flex-1 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+                >
+                  שמור
+                </button>
+                <button
+                  onClick={() => setEditingSession(null)}
+                  className="flex-1 bg-surface-secondary hover:bg-border text-text-primary px-4 py-2 rounded-lg font-semibold transition-colors"
+                >
+                  ביטול
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {deletingSession && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-surface rounded-lg p-6 max-w-md w-full shadow-xl">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-6 h-6 text-error" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-text-primary">למחוק פגישה?</h3>
+                  <p className="text-text-secondary text-sm">פעולה זו אינה ניתנת לביטול</p>
+                </div>
+              </div>
+
+              <p className="text-text-secondary mb-6 text-sm">
+                האם את/ה בטוח/ה שברצונך למחוק את "{deletingSession.title || deletingSession.audioFileName}"?
+                פעולה זו תמחק לצמיתות את התמלול, הסיכום וכל המידע הקשור.
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={async () => {
+                    try {
+                      await deleteSession(deletingSession.id);
+                      await loadSessions();
+                      setDeletingSession(null);
+                    } catch (err) {
+                      setError("נכשל במחיקת הפגישה");
+                      setDeletingSession(null);
+                    }
+                  }}
+                  className="flex-1 bg-error hover:bg-error/90 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+                >
+                  מחק
+                </button>
+                <button
+                  onClick={() => setDeletingSession(null)}
+                  className="flex-1 bg-surface-secondary hover:bg-border text-text-primary px-4 py-2 rounded-lg font-semibold transition-colors"
+                >
+                  ביטול
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

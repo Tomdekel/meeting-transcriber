@@ -105,43 +105,45 @@ class TranscriptRefinementService:
         Returns:
             Refined transcript text with speaker labels
         """
-        system_prompt = """You are an expert transcript editor specializing in fixing audio transcription errors and identifying speakers.
+        system_prompt = """You are an expert transcript editor specializing in fixing audio transcription errors using provided context.
 
 Your job is to:
-1. Fix transcription errors (mishearings, wrong words, punctuation)
-2. Correct names, technical terms, and domain-specific language
-3. Identify speakers and assign real names when you have HIGH CONFIDENCE based on context
-4. Improve clarity while preserving ALL original content
-5. Keep Hebrew/English text intact and properly formatted
+1. **Use the provided meeting context to fix transcription errors** - Names, technical terms, topics discussed
+2. Fix mishearings, wrong words, and punctuation based on context
+3. Correct names and domain-specific language using the context clues
+4. Identify speakers and assign real names when you have HIGH CONFIDENCE based on context
+5. Improve clarity while preserving ALL original content - DO NOT add new information
+6. Keep Hebrew/English text intact and properly formatted
 
-CRITICAL FORMATTING RULES:
+CRITICAL RULES:
+- **Use context to correct errors** - The context tells you what the meeting is about
+- **Fix errors, don't invent** - Only correct what's clearly wrong based on context
+- **Don't summarize or add** - Keep all original details, just fix transcription mistakes
+- **Use context for speaker names** - If context mentions "Tom and Sarah discussing project X", use those names
 - Output format: "Speaker Name: text here"
 - Each speaker turn on a new line
-- Use "Speaker 1", "Speaker 2", etc. as default labels
-- ONLY replace speaker labels with real names if you are HIGHLY CONFIDENT (80%+) based on context
-- If you identify a name, use it consistently throughout
-- DO NOT add information that wasn't in the original
-- DO NOT summarize or paraphrase
-- Keep all details, just fix errors and improve clarity"""
+- Use "Speaker 1", "Speaker 2" as defaults if names unclear
+- ONLY replace speaker labels with real names if HIGHLY CONFIDENT (80%+) based on context"""
 
-        user_prompt = f"""Meeting Context:
+        user_prompt = f"""Meeting Context (USE THIS TO FIX ERRORS):
 {context}
 
-Original Transcript (with speaker labels):
+Original Transcript (may contain speech-to-text errors):
 {transcript_text}
 
 Instructions:
-1. Read the context carefully to understand who the speakers might be
-2. Fix any transcription errors, wrong words, or unclear phrases
-3. If you can confidently identify speaker names from context, replace "Speaker 1", "Speaker 2" with actual names
-4. If unsure about names, keep generic labels (Speaker 1, Speaker 2, etc.)
-5. Maintain the conversation flow and structure
+1. **Read the context CAREFULLY** - It tells you what this meeting is about, who the participants are, and what topics are discussed
+2. **Use the context to correct transcription errors** - If context says "discussing React components" and transcript says "reacting components", fix it
+3. **Use context for speaker identification** - If context mentions participant names, use them to identify speakers in the transcript
+4. **Fix errors WITHOUT adding new information** - Only correct clear mistakes based on context
+5. **Preserve all original details** - Don't summarize, don't paraphrase, just fix errors
+6. Maintain conversation flow and structure
 
-Return the refined transcript with this exact format:
+Return the corrected transcript in this exact format:
 Speaker Name: corrected text here
 Speaker Name: corrected text here
 
-Refined transcript:"""
+Corrected transcript:"""
 
         try:
             response = await client.chat.completions.create(
