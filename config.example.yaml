@@ -1,0 +1,43 @@
+# Meeting Transcriber Configuration Example
+# Copy this file to config.yaml and customize as needed
+
+# Transcription settings
+transcription:
+  provider: whisper  # whisper or ivrit
+  api_key: ${TRANSCRIPTION_API_KEY}  # Can reference environment variables
+  model: whisper-1  # Model name (whisper-1 for Whisper)
+  language: auto  # auto, en, he, etc.
+
+# Summarization and chat settings (uses GPT-4o mini)
+summarization:
+  api_key: ${OPENAI_API_KEY}  # OpenAI API key
+  model: gpt-4o-mini  # Model for summary and chat
+
+# Chat settings
+chat:
+  enabled: true  # Enable interactive chat after transcription
+  save_history: true  # Save chat history to output file
+
+# Output settings
+output:
+  formats:
+    - markdown
+    - plaintext
+  directory: ./output  # Output directory
+  include_timestamps: true  # Include timestamps in transcript
+
+# Audio processing
+audio:
+  normalize: true  # Normalize audio levels
+  sample_rate: 16000  # Target sample rate (Hz)
+
+# Recording settings (for --record mode)
+recording:
+  source: microphone  # microphone or system (BlackHole)
+  device_id: null  # null = auto-detect, or specify device ID
+  sample_rate: 44100  # CD quality (44.1 kHz)
+  channels: 2  # Stereo
+  output_format: wav  # Output format
+
+# Logging
+log_level: INFO  # DEBUG, INFO, WARNING, ERROR

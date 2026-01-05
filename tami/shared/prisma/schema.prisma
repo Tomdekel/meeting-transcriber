@@ -1,0 +1,101 @@
+// Prisma schema for Tami - Meeting Transcriber Web UI
+
+generator client {
+  provider             = "prisma-client-py"
+  recursive_type_depth = 5
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String?  @unique
+  createdAt DateTime @default(now())
+  sessions  Session[]
+  settings  UserSettings?
+}
+
+model UserSettings {
+  id                    String  @id @default(cuid())
+  userId                String  @unique
+  user                  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  openaiApiKey          String? // Encrypted
+  transcriptionProvider String  @default("whisper")
+  transcriptionModel    String  @default("whisper-1")
+  summaryModel          String  @default("gpt-4o-mini")
+  chatModel             String  @default("gpt-4o-mini")
+}
+
+model Session {
+  id               String        @id @default(cuid())
+  userId           String?
+  user             User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  audioFileName    String
+  audioFileUrl     String
+  context          String
+  language         String        @default("he") // Hebrew default
+  status           String        @default("pending") // pending, processing, completed, failed
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  transcript       Transcript?
+  summary          Summary?
+  chatMessages     ChatMessage[]
+}
+
+model Transcript {
+  id        String              @id @default(cuid())
+  sessionId String              @unique
+  session   Session             @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  segments  TranscriptSegment[]
+  language  String
+  duration  Float?
+}
+
+model TranscriptSegment {
+  id           String     @id @default(cuid())
+  transcriptId String
+  transcript   Transcript @relation(fields: [transcriptId], references: [id], onDelete: Cascade)
+  speakerId    String     // "speaker_1", "speaker_2", etc.
+  speakerName  String?    // User-assigned name
+  text         String     @db.Text
+  startTime    Float
+  endTime      Float
+  order        Int
+
+  @@index([transcriptId, order])
+}
+
+model Summary {
+  id          String       @id @default(cuid())
+  sessionId   String       @unique
+  session     Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  overview    String       @db.Text
+  keyPoints   String[]
+  actionItems ActionItem[]
+}
+
+model ActionItem {
+  id          String   @id @default(cuid())
+  summaryId   String
+  summary     Summary  @relation(fields: [summaryId], references: [id], onDelete: Cascade)
+  description String   @db.Text
+  assignee    String?
+  deadline    String?
+  completed   Boolean  @default(false)
+
+  @@index([summaryId])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role      String   // "user" or "assistant"
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([sessionId, createdAt])
+}

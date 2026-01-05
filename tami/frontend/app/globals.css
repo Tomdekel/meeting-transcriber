@@ -1,0 +1,141 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Monday.com design tokens */
+    --primary: 206 100% 50%; /* #0085FF */
+    --primary-hover: 210 100% 45%; /* #0073E6 */
+    --success: 157 100% 40%; /* #00CA72 */
+    --warning: 48 100% 50%; /* #FFCB00 */
+    --error: 351 72% 57%; /* #E44258 */
+
+    /* Neutral colors */
+    --background: 228 33% 97%; /* #F6F7FB */
+    --foreground: 228 12% 20%; /* #323338 */
+    --surface: 0 0% 100%; /* #FFFFFF */
+
+    /* Text colors */
+    --text-primary: 228 12% 20%; /* #323338 */
+    --text-secondary: 228 6% 46%; /* #676879 */
+    --text-tertiary: 228 6% 62%; /* #9699A6 */
+
+    /* Border */
+    --border: 228 20% 87%; /* #D0D4E4 */
+    --input: 228 20% 87%;
+    --ring: 206 100% 50%;
+
+    /* shadcn/ui variables */
+    --card: 0 0% 100%;
+    --card-foreground: 228 12% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 228 12% 20%;
+    --muted: 228 20% 95%;
+    --muted-foreground: 228 6% 46%;
+    --accent: 228 20% 95%;
+    --accent-foreground: 228 12% 20%;
+    --destructive: 351 72% 57%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Border radius */
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 228 20% 10%;
+    --foreground: 228 10% 90%;
+    --card: 228 20% 12%;
+    --card-foreground: 228 10% 90%;
+    --popover: 228 20% 12%;
+    --popover-foreground: 228 10% 90%;
+    --primary: 206 100% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 228 20% 20%;
+    --secondary-foreground: 228 10% 90%;
+    --muted: 228 20% 20%;
+    --muted-foreground: 228 6% 60%;
+    --accent: 228 20% 20%;
+    --accent-foreground: 228 10% 90%;
+    --destructive: 351 72% 57%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 228 20% 25%;
+    --input: 228 20% 25%;
+    --ring: 206 100% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Hebrew/RTL specific styles */
+  [dir="rtl"] {
+    direction: rtl;
+  }
+
+  [dir="rtl"] * {
+    text-align: start;
+  }
+}
+
+@layer components {
+  /* Monday.com inspired button styles */
+  .btn-primary {
+    @apply bg-primary hover:bg-primary-hover text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200;
+  }
+
+  .btn-secondary {
+    @apply bg-surface hover:bg-muted text-text-primary border border-border font-semibold py-2 px-4 rounded-lg transition-colors duration-200;
+  }
+
+  /* Card styles */
+  .card {
+    @apply bg-surface rounded-lg shadow-sm border border-border p-6;
+  }
+
+  /* Input styles */
+  .input {
+    @apply w-full px-3 py-2 bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200;
+  }
+
+  /* RTL utilities */
+  .ms-auto {
+    margin-inline-start: auto;
+  }
+
+  .me-auto {
+    margin-inline-end: auto;
+  }
+}
+
+@layer utilities {
+  /* Text alignment utilities for RTL */
+  .text-start {
+    text-align: start;
+  }
+
+  .text-end {
+    text-align: end;
+  }
+
+  /* Scrollbar styling */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    @apply bg-muted rounded-lg;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-border hover:bg-text-tertiary rounded-lg;
+  }
+}

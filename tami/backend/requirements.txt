@@ -1,0 +1,35 @@
+# FastAPI and server
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+
+# Database
+prisma==0.11.0
+sqlalchemy==2.0.25
+alembic==1.13.1
+psycopg2-binary==2.9.9
+
+# Async support
+aiofiles==23.2.1
+
+# Security
+cryptography==42.0.0
+python-jose[cryptography]==3.3.0
+
+# Environment and configuration
+python-dotenv==1.0.0
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# Reuse existing meeting-transcriber dependencies
+openai==1.10.0
+loguru==0.7.2
+tenacity==8.2.3
+
+# CORS and middleware
+python-jose==3.3.0
+
+# Testing
+pytest==7.4.4
+pytest-asyncio==0.23.3
+httpx==0.26.0
