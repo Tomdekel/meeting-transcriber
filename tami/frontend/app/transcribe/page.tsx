@@ -221,7 +221,7 @@ export default function TranscribePage() {
                 הקשר הפגישה
               </label>
               <p className="text-sm text-text-secondary mb-3">
-                תאר בקצרה את נושא הפגישה (לדוגמה: "ראיון לתפקיד Product Manager")
+                תאר בקצרה את נושא הפגישה (לדוגמה: &quot;ראיון לתפקיד Product Manager&quot;)
               </p>
             </div>
 

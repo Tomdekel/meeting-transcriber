@@ -336,7 +336,7 @@ export default function SessionsPage() {
               </div>
 
               <p className="text-text-secondary mb-6 text-sm">
-                האם את/ה בטוח/ה שברצונך למחוק את "{deletingSession.title || deletingSession.audioFileName}"?
+                האם את/ה בטוח/ה שברצונך למחוק את &quot;{deletingSession.title || deletingSession.audioFileName}&quot;?
                 פעולה זו תמחק לצמיתות את התמלול, הסיכום וכל המידע הקשור.
               </p>
 

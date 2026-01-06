@@ -243,7 +243,7 @@ export default function SettingsPage() {
           {/* Chat Model */}
           <div>
             <label className="block text-text-primary font-medium mb-2">
-              מודל צ'אט
+              מודל צ&apos;אט
             </label>
             <select
               value={settings.chatModel}
