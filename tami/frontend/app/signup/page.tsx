@@ -5,12 +5,14 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 
-export default function LoginPage() {
-  const { user, loading, signInWithGoogle, signInWithEmail } = useAuth()
+export default function SignupPage() {
+  const { user, loading, signUpWithEmail, signInWithGoogle } = useAuth()
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
@@ -20,14 +22,27 @@ export default function LoginPage() {
     }
   }, [user, router])
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
-    setIsSubmitting(true)
 
-    const result = await signInWithEmail(email, password)
+    if (password !== confirmPassword) {
+      setError('הסיסמאות אינן תואמות')
+      return
+    }
+
+    if (password.length < 6) {
+      setError('הסיסמה חייבת להיות לפחות 6 תווים')
+      return
+    }
+
+    setIsSubmitting(true)
+    const result = await signUpWithEmail(email, password)
+
     if (result.error) {
       setError(result.error)
+    } else {
+      setSuccess(true)
     }
     setIsSubmitting(false)
   }
@@ -40,17 +55,34 @@ export default function LoginPage() {
     )
   }
 
+  if (success) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="max-w-md w-full p-8 space-y-6 text-center">
+          <div className="text-6xl">📧</div>
+          <h1 className="text-2xl font-bold text-text-primary">בדוק את האימייל שלך</h1>
+          <p className="text-text-secondary">
+            שלחנו לך קישור לאימות החשבון. לחץ על הקישור באימייל כדי להשלים את ההרשמה.
+          </p>
+          <Link href="/login" className="btn-secondary inline-block px-6 py-2">
+            חזור לדף ההתחברות
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="max-w-md w-full p-8 space-y-8">
         <div className="text-center space-y-2">
           <h1 className="text-5xl font-bold text-text-primary">תמי</h1>
-          <p className="text-xl text-text-secondary">תמלול חכם לפגישות</p>
+          <p className="text-xl text-text-secondary">צור חשבון חדש</p>
         </div>
 
         <div className="space-y-6 pt-4">
-          {/* Email Login Form */}
-          <form onSubmit={handleEmailLogin} className="space-y-4">
+          {/* Signup Form */}
+          <form onSubmit={handleSignup} className="space-y-4">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-text-secondary mb-1">
                 אימייל
@@ -77,7 +109,22 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 className="w-full px-4 py-3 rounded-lg border border-border bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="••••••••"
+                placeholder="לפחות 6 תווים"
+                dir="ltr"
+              />
+            </div>
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-text-secondary mb-1">
+                אימות סיסמה
+              </label>
+              <input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                className="w-full px-4 py-3 rounded-lg border border-border bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="הזן שוב את הסיסמה"
                 dir="ltr"
               />
             </div>
@@ -91,16 +138,14 @@ export default function LoginPage() {
               disabled={isSubmitting}
               className="w-full btn-primary py-3 text-lg disabled:opacity-50"
             >
-              {isSubmitting ? 'מתחבר...' : 'התחבר'}
+              {isSubmitting ? 'יוצר חשבון...' : 'צור חשבון'}
             </button>
           </form>
 
-          <div className="flex justify-between text-sm">
-            <Link href="/signup" className="text-primary hover:underline">
-              צור חשבון חדש
-            </Link>
-            <Link href="/forgot-password" className="text-text-secondary hover:underline">
-              שכחתי סיסמה
+          <div className="text-center text-sm">
+            <span className="text-text-secondary">כבר יש לך חשבון? </span>
+            <Link href="/login" className="text-primary hover:underline">
+              התחבר
             </Link>
           </div>
 
@@ -114,7 +159,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Google Login */}
+          {/* Google Signup */}
           <button
             onClick={signInWithGoogle}
             className="w-full btn-secondary flex items-center justify-center gap-3 py-3"
@@ -137,11 +182,11 @@ export default function LoginPage() {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
               />
             </svg>
-            <span>התחבר עם Google</span>
+            <span>הרשם עם Google</span>
           </button>
 
           <p className="text-xs text-text-tertiary text-center pt-2">
-            בהתחברות, אתה מסכים לתנאי השימוש ומדיניות הפרטיות
+            בהרשמה, אתה מסכים לתנאי השימוש ומדיניות הפרטיות
           </p>
         </div>
       </div>
