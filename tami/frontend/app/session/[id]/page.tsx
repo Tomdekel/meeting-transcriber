@@ -18,9 +18,9 @@ import MeetingAudioPlayer from "@/components/MeetingAudioPlayer";
 interface SessionStatus {
   sessionId: string;
   status: string;
-  audioFileName: string;
+  audioFileName?: string;
   audioFileUrl?: string;
-  context: string;
+  context?: string;
   error?: string;
   transcript?: {
     segments: Array<{
@@ -32,11 +32,16 @@ interface SessionStatus {
     }>;
   };
   summary?: {
+    id?: string;
     overview: string;
     keyPoints: string[];
     actionItems: Array<{
+      id?: string;
+      summaryId?: string;
       description: string;
       assignee?: string;
+      deadline?: string;
+      completed?: boolean;
     }>;
   };
 }
@@ -607,7 +612,7 @@ export default function SessionPage() {
                     <input
                       type="checkbox"
                       checked={item.completed}
-                      onChange={(e) => handleToggleActionItem(item.id, e.target.checked)}
+                      onChange={(e) => item.id && handleToggleActionItem(item.id, e.target.checked)}
                       className="mt-1"
                     />
                     <div className="flex-1">
@@ -619,7 +624,7 @@ export default function SessionPage() {
                       )}
                     </div>
                     <button
-                      onClick={() => handleDeleteActionItem(item.id)}
+                      onClick={() => item.id && handleDeleteActionItem(item.id)}
                       className="opacity-0 group-hover:opacity-100 text-error hover:text-error/80 transition-opacity"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -44,8 +44,7 @@ const config: Config = {
           tertiary: "#9699A6",
         },
         border: "#D0D4E4",
-        // shadcn/ui compatibility
-        background: "hsl(var(--background))",
+        // shadcn/ui compatibility (background already defined above as "#F6F7FB")
         foreground: "hsl(var(--foreground))",
         card: {
           DEFAULT: "hsl(var(--card))",

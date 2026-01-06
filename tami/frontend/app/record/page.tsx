@@ -154,7 +154,7 @@ export default function RecordPage() {
       const transcriptionResponse = await startTranscription({
         uploadId: uploadResponse.uploadId,
         context: context.trim() || "פגישה",
-        participants: participants.trim() || undefined,
+        participants: participants.trim() ? participants.split(',').map(p => p.trim()).filter(Boolean) : undefined,
         transcriptionProvider: "ivrit",
         transcriptionModel: "ivrit-ai/whisper-large-v3-turbo-ct2",
         summaryModel: "gpt-4o-mini",
