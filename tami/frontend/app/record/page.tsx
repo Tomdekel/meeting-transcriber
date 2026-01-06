@@ -3,16 +3,16 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { startRecording, stopRecording, startTranscription, handleApiError } from "@/lib/api";
+import { uploadFile, startTranscription, handleApiError } from "@/lib/api";
 
 export default function RecordPage() {
   const router = useRouter();
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [context, setContext] = useState("");
+  const [participants, setParticipants] = useState("");
   const [error, setError] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [recordingId, setRecordingId] = useState<string>("");
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
   const [recordingMode, setRecordingMode] = useState<"microphone" | "system">("microphone");
@@ -90,10 +90,6 @@ export default function RecordPage() {
         stream.getVideoTracks().forEach((track) => track.stop());
       }
 
-      // Initialize backend recording session
-      const response = await startRecording();
-      setRecordingId(response.recordingId);
-
       // Create MediaRecorder
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: "audio/webm;codecs=opus",
@@ -102,28 +98,15 @@ export default function RecordPage() {
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
 
-      // Handle data available
-      mediaRecorder.ondataavailable = async (event) => {
+      // Handle data available - accumulate chunks in memory
+      mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           chunksRef.current.push(event.data);
-
-          // Send chunk to backend
-          try {
-            await fetch(
-              `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/record/${response.recordingId}/chunk`,
-              {
-                method: "POST",
-                body: event.data,
-              }
-            );
-          } catch (err) {
-            console.error("Failed to upload chunk:", err);
-          }
         }
       };
 
-      // Start recording
-      mediaRecorder.start(1000); // Capture in 1-second chunks
+      // Start recording (request data every second for progress, but don't send yet)
+      mediaRecorder.start(1000);
       setIsRecording(true);
       setRecordingTime(0);
     } catch (err: any) {
@@ -137,52 +120,43 @@ export default function RecordPage() {
 
   // Stop recording
   const handleStopRecording = async () => {
-    if (!mediaRecorderRef.current || !recordingId) return;
+    if (!mediaRecorderRef.current) return;
 
     try {
       setIsProcessing(true);
 
+      // Set up promise to wait for recording to stop
+      const stopPromise = new Promise<void>((resolve) => {
+        if (mediaRecorderRef.current) {
+          mediaRecorderRef.current.onstop = () => resolve();
+        }
+      });
+
       // Stop media recorder
       mediaRecorderRef.current.stop();
+
+      // Wait for onstop event (this ensures all chunks are available)
+      await stopPromise;
 
       // Stop all tracks
       mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
 
       setIsRecording(false);
 
-      // Wait for final chunk to upload with longer timeout
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Combine all chunks into single blob
+      const completeBlob = new Blob(chunksRef.current, { type: "audio/webm;codecs=opus" });
+      const audioFile = new File([completeBlob], "recording.webm", { type: "audio/webm;codecs=opus" });
 
-      // Finalize recording on backend with retry logic
-      const maxRetries = 3;
-      let uploadResponse;
-      let lastError;
-
-      for (let attempt = 0; attempt < maxRetries; attempt++) {
-        try {
-          uploadResponse = await stopRecording(recordingId);
-          break; // Success - exit retry loop
-        } catch (err) {
-          lastError = err;
-          console.error(`Stop recording attempt ${attempt + 1} failed:`, err);
-
-          if (attempt < maxRetries - 1) {
-            // Wait before retrying (exponential backoff)
-            await new Promise((resolve) => setTimeout(resolve, 2000 * (attempt + 1)));
-          }
-        }
-      }
-
-      if (!uploadResponse) {
-        throw lastError || new Error("Failed to stop recording after multiple attempts");
-      }
+      // Upload complete audio file
+      const uploadResponse = await uploadFile(audioFile);
 
       // Start transcription
       const transcriptionResponse = await startTranscription({
         uploadId: uploadResponse.uploadId,
         context: context.trim() || "פגישה",
-        transcriptionProvider: "whisper",
-        transcriptionModel: "whisper-1",
+        participants: participants.trim() || undefined,
+        transcriptionProvider: "ivrit",
+        transcriptionModel: "ivrit-ai/whisper-large-v3-turbo-ct2",
         summaryModel: "gpt-4o-mini",
       });
 
@@ -267,6 +241,23 @@ export default function RecordPage() {
                 className="input min-h-[120px] resize-y"
                 rows={4}
               />
+
+              <div>
+                <label
+                  htmlFor="participants"
+                  className="block text-sm font-medium text-text-secondary mb-2"
+                >
+                  משתתפים (אופציונלי)
+                </label>
+                <input
+                  id="participants"
+                  type="text"
+                  value={participants}
+                  onChange={(e) => setParticipants(e.target.value)}
+                  placeholder="לדוגמה: יוסי, שרה, דוד"
+                  className="input"
+                />
+              </div>
             </div>
           )}
 

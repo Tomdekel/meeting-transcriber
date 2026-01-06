@@ -69,11 +69,13 @@ async def process_transcription(
         )
 
         # Refine transcript using GPT-4o (post-processing with context)
+        # Always use OpenAI API key for refinement, regardless of transcription provider
+        openai_key = settings.OPENAI_API_KEY or settings.SECRET_KEY
         refinement_service = get_refinement_service()
         transcript_result = await refinement_service.refine_transcript(
             transcript=transcript_result,
             context=context,
-            api_key=api_key,
+            api_key=openai_key,
             model="gpt-4o"  # Use strongest model for refinement
         )
 
@@ -105,11 +107,12 @@ async def process_transcription(
         logger.info(f"Transcript saved for session {session_id}")
 
         # Generate summary
+        # Always use OpenAI API key for summarization, regardless of transcription provider
         summary_result = await summarization_service.generate_summary(
             transcript=transcript_result,
             context=context,
             participants=participants or [],
-            api_key=api_key,
+            api_key=openai_key,
             model=summary_model
         )
 

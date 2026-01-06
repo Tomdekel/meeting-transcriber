@@ -32,6 +32,15 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ENCRYPTION_KEY: Optional[str] = None  # For encrypting API keys, will be generated if not set
 
+    # Supabase Configuration
+    SUPABASE_URL: str = ""
+    SUPABASE_ANON_KEY: str = ""
+    SUPABASE_SERVICE_ROLE_KEY: str = ""
+    SUPABASE_JWT_SECRET: str = ""
+
+    # CORS - production origins
+    CORS_ORIGINS: str = "http://localhost:3000"  # Comma-separated in production
+
     # Session
     SESSION_CLEANUP_DAYS: int = 30  # Delete sessions older than 30 days
 

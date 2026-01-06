@@ -10,7 +10,7 @@ from src.utils.exceptions import AudioFileError
 class AudioValidator:
     """Validate audio files."""
 
-    SUPPORTED_FORMATS = ['.m4a', '.wav', '.mp3', '.flac', '.ogg']
+    SUPPORTED_FORMATS = ['.m4a', '.wav', '.mp3', '.flac', '.ogg', '.webm', '.mpga', '.mpeg']
     MAX_DURATION = 7200  # 2 hours in seconds
 
     @staticmethod

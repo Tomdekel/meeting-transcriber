@@ -3,19 +3,22 @@
 import uuid
 from pathlib import Path
 from typing import Optional
-from fastapi import APIRouter, UploadFile, File, HTTPException, status
+from fastapi import APIRouter, UploadFile, File, HTTPException, status, Depends
 from fastapi.responses import JSONResponse
 from loguru import logger
 import aiofiles
 
 from app.core.config import settings
+from app.core.auth import get_current_user
 
 router = APIRouter()
 
 
 @router.post("/upload")
 async def upload_file(
-    file: UploadFile = File(...),
+    file: UploadFile = File(...)
+    # TODO: Re-enable authentication when auth system is ready
+    # current_user: dict = Depends(get_current_user)
 ) -> JSONResponse:
     """Upload an audio file.
 

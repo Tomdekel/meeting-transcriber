@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Rubik, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/lib/auth-context";
 
 // Fonts
 const inter = Inter({
@@ -39,7 +40,9 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${rubik.variable} ${jetbrainsMono.variable} font-sans antialiased`}
       >
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

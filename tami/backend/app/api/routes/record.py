@@ -193,16 +193,15 @@ async def stop_recording(recording_id: str) -> JSONResponse:
                 '-y',  # Overwrite output file
                 '-f', 'concat',
                 '-safe', '0',
-                '-i', str(concat_file),
+                '-i', str(concat_file.absolute()),  # Use absolute path for concat file
                 '-ar', '44100',  # Sample rate
                 '-ac', '2',  # Stereo
                 '-c:a', 'pcm_s16le',  # WAV codec
                 '-loglevel', 'warning',  # More verbose logging
-                str(output_file)
+                str(output_file.absolute())  # Use absolute path for output file
             ],
             capture_output=True,
-            text=True,
-            cwd=str(recording_dir)  # Run in chunk directory
+            text=True
         )
 
         if result.returncode != 0:

@@ -2,11 +2,12 @@
 
 from typing import Optional
 from pathlib import Path
-from fastapi import APIRouter, HTTPException, status, Query
+from fastapi import APIRouter, HTTPException, status, Query, Depends
 from fastapi.responses import JSONResponse, FileResponse
 from loguru import logger
 
 from app.db import db
+from app.core.auth import get_current_user
 from app.schemas.session import (
     SessionResponse,
     SessionListResponse,
@@ -24,14 +25,14 @@ router = APIRouter()
 
 @router.get("/sessions", response_model=SessionListResponse)
 async def list_sessions(
-    user_id: Optional[str] = Query(None),
+    current_user: dict = Depends(get_current_user),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100)
 ):
-    """List all sessions.
+    """List all sessions for the authenticated user.
 
     Args:
-        user_id: Filter by user ID
+        current_user: Authenticated user from JWT token
         page: Page number
         page_size: Items per page
 
@@ -39,10 +40,8 @@ async def list_sessions(
         List of sessions with pagination
     """
     try:
-        # Build where clause
-        where = {}
-        if user_id:
-            where["userId"] = user_id
+        # Build where clause - only show user's own sessions
+        where = {"userId": current_user["id"]}
 
         # Get total count
         total = await db.session.count(where=where)
@@ -85,11 +84,15 @@ async def list_sessions(
 
 
 @router.get("/sessions/{session_id}", response_model=SessionResponse)
-async def get_session(session_id: str):
-    """Get session by ID.
+async def get_session(
+    session_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get session by ID for authenticated user.
 
     Args:
         session_id: Session ID
+        current_user: Authenticated user from JWT token
 
     Returns:
         Session details
@@ -100,6 +103,13 @@ async def get_session(session_id: str):
         )
 
         if not session:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Session not found"
+            )
+
+        # Authorization check: ensure user owns this session
+        if session.userId != current_user["id"]:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Session not found"
@@ -129,12 +139,17 @@ async def get_session(session_id: str):
 
 
 @router.patch("/sessions/{session_id}", response_model=SessionResponse)
-async def update_session(session_id: str, update_data: SessionUpdate):
+async def update_session(
+    session_id: str,
+    update_data: SessionUpdate,
+    current_user: dict = Depends(get_current_user)
+):
     """Update session metadata (title, context, language, status).
 
     Args:
         session_id: Session ID
         update_data: Fields to update
+        current_user: Authenticated user from JWT token
 
     Returns:
         Updated session
@@ -146,6 +161,13 @@ async def update_session(session_id: str, update_data: SessionUpdate):
         )
 
         if not session:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Session not found"
+            )
+
+        # Authorization check: ensure user owns this session
+        if session.userId != current_user["id"]:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Session not found"
@@ -491,11 +513,15 @@ async def delete_action_item(session_id: str, action_item_id: str):
 
 
 @router.delete("/sessions/{session_id}")
-async def delete_session(session_id: str):
+async def delete_session(
+    session_id: str,
+    current_user: dict = Depends(get_current_user)
+):
     """Delete a session.
 
     Args:
         session_id: Session ID
+        current_user: Authenticated user from JWT token
 
     Returns:
         Success message
@@ -507,6 +533,13 @@ async def delete_session(session_id: str):
         )
 
         if not session:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Session not found"
+            )
+
+        # Authorization check: ensure user owns this session
+        if session.userId != current_user["id"]:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Session not found"
@@ -535,11 +568,15 @@ async def delete_session(session_id: str):
 
 
 @router.get("/sessions/{session_id}/audio")
-async def get_session_audio(session_id: str):
+async def get_session_audio(
+    session_id: str,
+    current_user: dict = Depends(get_current_user)
+):
     """Stream audio file for a session.
 
     Args:
         session_id: Session ID
+        current_user: Authenticated user from JWT token
 
     Returns:
         Audio file stream
@@ -549,6 +586,13 @@ async def get_session_audio(session_id: str):
         session = await db.session.find_unique(where={"id": session_id})
 
         if not session:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Session not found"
+            )
+
+        # Authorization check: ensure user owns this session
+        if session.userId != current_user["id"]:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Session not found"
