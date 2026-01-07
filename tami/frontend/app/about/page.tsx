@@ -4,160 +4,135 @@ import Link from "next/link"
 
 export default function AboutPage() {
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-surface border-b border-border">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="text-2xl font-bold text-text-primary">
-            תמי
-          </Link>
-          <Link href="/login" className="btn-primary px-6 py-2">
-            התחבר
-          </Link>
-        </div>
-      </header>
+    <div className="min-h-screen bg-[#F7F8FA]" dir="rtl">
+      <main className="max-w-[760px] mx-auto px-6 py-16">
 
-      {/* Content */}
-      <main className="max-w-4xl mx-auto px-4 py-12 space-y-16">
-        {/* Hero */}
-        <section className="text-center space-y-4">
-          <h1 className="text-5xl font-bold text-text-primary">אודות תמי</h1>
-          <p className="text-xl text-text-secondary max-w-2xl mx-auto">
-            תמלול חכם לפגישות - AI מתקדם לעסקים ישראליים
-          </p>
+        {/* Header */}
+        <section className="mb-12">
+          <h1 className="text-[30px] font-bold text-[#1F2937] mb-4">
+            אודות תמי
+          </h1>
+          <h2 className="text-[20px] font-semibold text-[#1F2937]">
+            כלי תיעוד שיחות בעברית — ברור, שקט, ואמין.
+          </h2>
         </section>
 
-        {/* What is Tami */}
-        <section className="space-y-4">
-          <h2 className="text-3xl font-bold text-text-primary">מה זה תמי?</h2>
-          <div className="prose text-text-secondary space-y-4">
-            <p className="text-lg leading-relaxed">
-              תמי היא מערכת תמלול חכמה שנבנתה במיוחד לעברית. המערכת מאפשרת לך להקליט
-              פגישות, להעלות הקלטות קיימות, או להאזין לשיחות זום/גוגל מיט/טימס - ולקבל
-              תמלול מדויק עם זיהוי דוברים אוטומטי.
+        {/* מהי תמי? */}
+        <section className="mb-12">
+          <h2 className="text-[20px] font-semibold text-[#1F2937] mb-4">
+            מהי תמי?
+          </h2>
+          <div className="text-[16px] text-[#6B7280] leading-[1.6] space-y-4">
+            <p>
+              תמי היא מערכת שמבינה שיחות עבודה בעברית ומסכמת אותן בצורה מדויקת וברורה.
+              היא נבנתה כדי לאפשר לך להקליט פגישות, לנתח אותן, ולחזור אל מה שבאמת חשוב — בלי להקשיב שוב ובלי לפספס.
             </p>
-            <p className="text-lg leading-relaxed">
-              אחרי התמלול, תמי מנתחת את השיחה ומספקת סיכום חכם עם נקודות עיקריות,
-              החלטות שהתקבלו ופעולות מעקב. אפשר גם לשאול שאלות על התוכן ולקבל תשובות
-              מדויקות בזמן אמת.
+            <p>אחרי כל שיחה, תמי מציגה:</p>
+            <ul className="list-disc list-inside space-y-1 pr-2">
+              <li>החלטות</li>
+              <li>משימות ואחריות</li>
+              <li>נקודות חשובות</li>
+              <li>תמלול מלא וחיפוש לפי תוכן</li>
+            </ul>
+            <p>המטרה פשוטה: שהמידע הקריטי יישאר נגיש, מסודר, ואמין.</p>
+          </div>
+        </section>
+
+        {/* למה תמי קיימת? */}
+        <section className="mb-12">
+          <h2 className="text-[20px] font-semibold text-[#1F2937] mb-4">
+            למה תמי קיימת?
+          </h2>
+          <div className="text-[16px] text-[#6B7280] leading-[1.6] space-y-4">
+            <p>
+              תמי נולדה מתוך צורך אישי.
+              חיפשתי כלי שיתמלל שיחות עבודה בעברית בצורה מדויקת וגמישה שמתאימה לאופן שבו אני עובד ונפגש עם אנשים בחיים האמיתיים — ולא מצאתי.
+            </p>
+            <p>
+              רציתי מערכת שבנויה לעברית מהבסיס, ושיודעת גם לקבל קונטקסט על מהות הפגישה כדי לשפר משמעותית את התוצאה.
+            </p>
+            <p>תמי נועדה לעזור:</p>
+            <ul className="list-disc list-inside space-y-1 pr-2">
+              <li>לצמצם אי־בהירויות</li>
+              <li>לוודא הסכמות</li>
+              <li>לזהות משימות פתוחות</li>
+              <li>ולתת תחושת ביטחון שלא מפספסים שום דבר שנאמר</li>
+            </ul>
+          </div>
+        </section>
+
+        {/* איך זה עובד? */}
+        <section className="mb-12">
+          <h2 className="text-[20px] font-semibold text-[#1F2937] mb-4">
+            איך זה עובד?
+          </h2>
+          <div className="text-[16px] text-[#6B7280] leading-[1.6] space-y-4">
+            <ol className="list-decimal list-inside space-y-2 pr-2">
+              <li>מקליטים שיחה או מעלים הקלטה קיימת</li>
+              <li>תמי מתמללת ומזהה דוברים בצורה מדויקת</li>
+              <li>התמלול עובר למודל שפה חזק נוסף יחד עם הקונטקסט של הפגישה לצורך דיוק עמוק יותר</li>
+              <li>מתקבל סיכום תמציתי הכולל החלטות, משימות ותובנות</li>
+              <li>ניתן לשאול את תמי שאלות על השיחה ולקבל תשובות מדויקות בזמן אמת</li>
+            </ol>
+            <p>אין צורך בהתקנות, אין בוט בשיחה, ואין צורך לבקש רשות מהצד השני.</p>
+          </div>
+        </section>
+
+        {/* למה דווקא עברית? */}
+        <section className="mb-12">
+          <h2 className="text-[20px] font-semibold text-[#1F2937] mb-4">
+            למה דווקא עברית?
+          </h2>
+          <div className="text-[16px] text-[#6B7280] leading-[1.6] space-y-4">
+            <p>
+              עברית מדוברת מורכבת: קצב משתנה, עירוב אנגלית, שמות, קיצורים ומושגים פנימיים.
+              רוב המודלים הגנריים לא מותאמים לזה — תמי כן.
+            </p>
+            <p>
+              המערכת מאומנת במיוחד להבנת עברית בשיחות עבודה אמיתיות, כך שהתוצאות קריאות, טבעיות, ונאמנות למה שנאמר.
             </p>
           </div>
         </section>
 
-        {/* How it works */}
-        <section className="space-y-6">
-          <h2 className="text-3xl font-bold text-text-primary">איך זה עובד?</h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="bg-surface rounded-lg p-6 border border-border">
-              <div className="text-4xl mb-4">1️⃣</div>
-              <h3 className="text-xl font-bold text-text-primary mb-2">העלה או הקלט</h3>
-              <p className="text-text-secondary">
-                הקלט פגישה חיה, האזן לשיחת זום/טימס, או העלה קובץ הקלטה קיים
-              </p>
-            </div>
-            <div className="bg-surface rounded-lg p-6 border border-border">
-              <div className="text-4xl mb-4">2️⃣</div>
-              <h3 className="text-xl font-bold text-text-primary mb-2">תמלול אוטומטי</h3>
-              <p className="text-text-secondary">
-                מודל Ivrit מתמלל את ההקלטה בדיוק גבוה עם זיהוי דוברים אוטומטי
-              </p>
-            </div>
-            <div className="bg-surface rounded-lg p-6 border border-border">
-              <div className="text-4xl mb-4">3️⃣</div>
-              <h3 className="text-xl font-bold text-text-primary mb-2">קבל תובנות</h3>
-              <p className="text-text-secondary">
-                סיכום חכם, נקודות עיקריות, פעולות מעקב ואפשרות לשאול שאלות
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* Free & Built by Tom */}
-        <section className="bg-primary-light rounded-lg p-8 space-y-4">
-          <h2 className="text-3xl font-bold text-text-primary">חינמי ופתוח</h2>
-          <div className="text-text-secondary space-y-4">
-            <p className="text-lg leading-relaxed">
-              תמי נבנתה על ידי <strong>תום דקל</strong> כפרויקט למידה בעולם ה-"Vibe Coding" -
-              בניית מוצרים טכנולוגיים בעזרת AI בצורה מהירה ויעילה.
+        {/* פרטיות ואמון */}
+        <section className="mb-12">
+          <h2 className="text-[20px] font-semibold text-[#1F2937] mb-4">
+            פרטיות ואמון
+          </h2>
+          <div className="text-[16px] text-[#6B7280] leading-[1.6] space-y-4">
+            <p>
+              הפרטיות שלך קודמת לכל.
+              ההקלטות והתמלולים נשמרים בצורה מוגנת ונגישים רק לך — לא מועברים לאף גורם אחר.
             </p>
-            <p className="text-lg leading-relaxed">
-              המערכת <strong>חינמית לשימוש</strong> כרגע ופתוחה לכולם. המטרה היא לספק
-              כלי תמלול איכותי לקהילה הישראלית.
+            <p>
+              השיחות לא משמשות לאימון מודלים נוספים.
+              התוכן שלך נשאר בשליטה מלאה שלך, כולל מחיקה בכל רגע.
             </p>
           </div>
         </section>
 
-        {/* Why Ivrit Model */}
-        <section className="space-y-4">
-          <h2 className="text-3xl font-bold text-text-primary">למה מודל Ivrit?</h2>
-          <div className="text-text-secondary space-y-4">
-            <p className="text-lg leading-relaxed">
-              מודל <strong>Ivrit</strong> הוא מודל הזיהוי הקולי הטוב ביותר לעברית שקיים היום.
-              בניגוד למודלים כלליים כמו Whisper שאומנו על אנגלית בעיקר, Ivrit אומן במיוחד
-              על עברית ומבין את המבטא, ההטעמה והמילים הייחודיות לשפה.
-            </p>
-            <p className="text-lg leading-relaxed">
-              המודל כולל גם <strong>זיהוי דוברים אוטומטי</strong> (Speaker Diarization) -
-              כך שתמי יודעת להפריד בין הדוברים השונים בשיחה ולסמן מי אמר מה.
-            </p>
-          </div>
-        </section>
-
-        {/* Post-Processing */}
-        <section className="space-y-4">
-          <h2 className="text-3xl font-bold text-text-primary">פוסט-פרוססינג חכם</h2>
-          <div className="text-text-secondary space-y-4">
-            <p className="text-lg leading-relaxed">
-              אחרי התמלול הראשוני, תמי מעבירה את הטקסט דרך שכבת עיבוד נוספת עם
-              <strong> GPT-4o</strong>. השכבה הזו מתקנת שגיאות הקלדה, משפרת פיסוק ומוסיפה
-              הקשר - כך שהתמלול הסופי קריא ומדויק יותר.
-            </p>
-            <p className="text-lg leading-relaxed">
-              GPT-4o גם אחראי על יצירת הסיכום החכם, זיהוי נקודות מפתח, והפקת פעולות
-              המעקב מתוך השיחה.
-            </p>
-          </div>
-        </section>
-
-        {/* Security */}
-        <section className="space-y-4">
-          <h2 className="text-3xl font-bold text-text-primary">אבטחה ופרטיות</h2>
-          <div className="text-text-secondary space-y-4">
-            <p className="text-lg leading-relaxed">
-              <strong>ההקלטות שלך פרטיות.</strong> הקבצים מאוחסנים בצורה מאובטחת ב-Supabase
-              Storage עם הצפנה. רק אתה יכול לגשת לתמלילים והסיכומים שלך.
-            </p>
-            <p className="text-lg leading-relaxed">
-              המערכת משתמשת ב-<strong>Supabase</strong> לאימות משתמשים ואחסון נתונים -
-              פלטפורמה מאובטחת שעומדת בתקני אבטחה מחמירים.
-            </p>
-            <p className="text-lg leading-relaxed">
-              <strong>אנחנו לא משתמשים בנתונים שלך לאימון מודלים</strong> - ההקלטות
-              והתמלילים נשארים שלך בלבד.
-            </p>
-          </div>
-        </section>
-
-        {/* CTA */}
-        <section className="text-center space-y-6 pt-8">
-          <h2 className="text-3xl font-bold text-text-primary">מוכנים להתחיל?</h2>
-          <div className="flex justify-center gap-4">
-            <Link href="/login" className="btn-primary px-8 py-4 text-lg">
+        {/* CTA Footer */}
+        <footer className="pt-12 border-t border-[#E6E8EC]">
+          <h2 className="text-[20px] font-semibold text-[#1F2937] mb-6">
+            מוכנים להתחיל?
+          </h2>
+          <div className="flex gap-4">
+            <Link
+              href="/login"
+              className="bg-[#2B3A67] hover:bg-[#1F2937] text-white px-6 py-3 rounded-lg font-medium transition-colors"
+            >
               התחבר עכשיו
             </Link>
-            <Link href="/" className="btn-secondary px-8 py-4 text-lg">
+            <Link
+              href="/"
+              className="border-2 border-[#E6E8EC] hover:border-[#6B7280] text-[#1F2937] px-6 py-3 rounded-lg font-medium transition-colors"
+            >
               חזור לדף הבית
             </Link>
           </div>
-        </section>
-      </main>
+        </footer>
 
-      {/* Footer */}
-      <footer className="bg-surface border-t border-border mt-16">
-        <div className="max-w-4xl mx-auto px-4 py-6 text-center text-text-tertiary text-sm">
-          נבנה על ידי תום דקל | Vibe Coding 2025
-        </div>
-      </footer>
+      </main>
     </div>
   )
 }

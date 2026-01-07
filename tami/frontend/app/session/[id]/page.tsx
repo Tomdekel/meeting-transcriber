@@ -1,19 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   getTranscriptionStatus,
   updateSummary,
   createActionItem,
   updateActionItem,
-  deleteActionItem
+  deleteActionItem,
+  sendChatMessage,
 } from "@/lib/api";
-import ChatBox from "@/components/ChatBox";
-import SpeakerEditor from "@/components/SpeakerEditor";
-import LoadingSkeleton from "@/components/LoadingSkeleton";
-import ErrorMessage from "@/components/ErrorMessage";
-import MeetingAudioPlayer from "@/components/MeetingAudioPlayer";
 
 interface SessionStatus {
   sessionId: string;
@@ -46,25 +43,26 @@ interface SessionStatus {
   };
 }
 
-// Speaker color palette - Monday.com inspired colors
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+// Speaker colors
 const SPEAKER_COLORS = [
-  { border: "border-blue-500", text: "text-blue-600", bg: "bg-blue-50" },
-  { border: "border-green-500", text: "text-green-600", bg: "bg-green-50" },
-  { border: "border-purple-500", text: "text-purple-600", bg: "bg-purple-50" },
-  { border: "border-orange-500", text: "text-orange-600", bg: "bg-orange-50" },
-  { border: "border-pink-500", text: "text-pink-600", bg: "bg-pink-50" },
-  { border: "border-cyan-500", text: "text-cyan-600", bg: "bg-cyan-50" },
-  { border: "border-amber-500", text: "text-amber-600", bg: "bg-amber-50" },
-  { border: "border-indigo-500", text: "text-indigo-600", bg: "bg-indigo-50" },
+  { bg: "#E8F2FF", name: "a" },  // Blue
+  { bg: "#EFFFF4", name: "b" },  // Green
+  { bg: "#FFF5E6", name: "c" },  // Orange
+  { bg: "#F5E6FF", name: "d" },  // Purple
+  { bg: "#FFF0F0", name: "e" },  // Pink
 ];
 
-// Helper function to get speaker color based on speaker name
-const getSpeakerColor = (speaker: string, speakerMap: Map<string, number>) => {
-  if (!speakerMap.has(speaker)) {
-    speakerMap.set(speaker, speakerMap.size);
+const getSpeakerColor = (speakerId: string, colorMap: Map<string, string>) => {
+  if (!colorMap.has(speakerId)) {
+    const colorIndex = colorMap.size % SPEAKER_COLORS.length;
+    colorMap.set(speakerId, SPEAKER_COLORS[colorIndex].bg);
   }
-  const colorIndex = speakerMap.get(speaker)! % SPEAKER_COLORS.length;
-  return SPEAKER_COLORS[colorIndex];
+  return colorMap.get(speakerId) || "#F2F2F2";
 };
 
 export default function SessionPage() {
@@ -75,9 +73,10 @@ export default function SessionPage() {
   const [session, setSession] = useState<SessionStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"summary" | "qa" | "raw">("summary");
 
-  // Track speaker to color mapping
-  const speakerColorMap = new Map<string, number>();
+  // Speaker color mapping
+  const speakerColorMapRef = useRef(new Map<string, string>());
 
   // Summary editing state
   const [isEditingSummary, setIsEditingSummary] = useState(false);
@@ -85,10 +84,22 @@ export default function SessionPage() {
   const [editedKeyPoints, setEditedKeyPoints] = useState<string[]>([]);
   const [savingSummary, setSavingSummary] = useState(false);
 
-  // Action item editing state
-  const [editingActionItemId, setEditingActionItemId] = useState<string | null>(null);
+  // Action item state
   const [newActionItem, setNewActionItem] = useState("");
   const [addingActionItem, setAddingActionItem] = useState(false);
+
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Audio player state
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [playbackRate, setPlaybackRate] = useState(1);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -99,12 +110,11 @@ export default function SessionPage() {
         setSession(status);
         setLoading(false);
 
-        // Poll every 3 seconds if still processing
         if (status.status === "processing" || status.status === "pending") {
           setTimeout(fetchStatus, 3000);
         }
       } catch (err: any) {
-        setError(err.message || "Failed to fetch session status");
+        setError(err.message || "שגיאה בטעינת השיחה");
         setLoading(false);
       }
     };
@@ -112,7 +122,60 @@ export default function SessionPage() {
     fetchStatus();
   }, [sessionId]);
 
-  // Summary editing handlers
+  // Scroll chat to bottom
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages]);
+
+  // Format time MM:SS
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  // Audio handlers
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setIsPlaying(!isPlaying);
+  };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      setDuration(audioRef.current.duration);
+    }
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const time = parseFloat(e.target.value);
+    if (audioRef.current) {
+      audioRef.current.currentTime = time;
+      setCurrentTime(time);
+    }
+  };
+
+  const changePlaybackRate = () => {
+    const rates = [1, 1.25, 1.5, 1.75, 2, 0.5, 0.75];
+    const currentIndex = rates.indexOf(playbackRate);
+    const nextRate = rates[(currentIndex + 1) % rates.length];
+    setPlaybackRate(nextRate);
+    if (audioRef.current) {
+      audioRef.current.playbackRate = nextRate;
+    }
+  };
+
+  // Summary handlers
   const handleEditSummary = () => {
     if (session?.summary) {
       setEditedOverview(session.summary.overview);
@@ -123,29 +186,20 @@ export default function SessionPage() {
 
   const handleSaveSummary = async () => {
     if (!session) return;
-
     try {
       setSavingSummary(true);
       await updateSummary(sessionId, {
         overview: editedOverview,
         keyPoints: editedKeyPoints,
       });
-
-      // Update local state optimistically
       setSession({
         ...session,
         summary: session.summary
-          ? {
-              ...session.summary,
-              overview: editedOverview,
-              keyPoints: editedKeyPoints,
-            }
+          ? { ...session.summary, overview: editedOverview, keyPoints: editedKeyPoints }
           : undefined,
       });
-
       setIsEditingSummary(false);
     } catch (error) {
-      console.error("Failed to save summary:", error);
       alert("שגיאה בשמירת הסיכום");
     } finally {
       setSavingSummary(false);
@@ -154,35 +208,14 @@ export default function SessionPage() {
 
   const handleCancelEditSummary = () => {
     setIsEditingSummary(false);
-    setEditedOverview("");
-    setEditedKeyPoints([]);
-  };
-
-  const handleUpdateKeyPoint = (index: number, value: string) => {
-    const updated = [...editedKeyPoints];
-    updated[index] = value;
-    setEditedKeyPoints(updated);
-  };
-
-  const handleAddKeyPoint = () => {
-    setEditedKeyPoints([...editedKeyPoints, ""]);
-  };
-
-  const handleRemoveKeyPoint = (index: number) => {
-    setEditedKeyPoints(editedKeyPoints.filter((_, i) => i !== index));
   };
 
   // Action item handlers
   const handleAddActionItem = async () => {
     if (!newActionItem.trim()) return;
-
     try {
       setAddingActionItem(true);
-      const result = await createActionItem(sessionId, {
-        description: newActionItem,
-      });
-
-      // Update local state optimistically
+      const result = await createActionItem(sessionId, { description: newActionItem });
       if (session?.summary) {
         setSession({
           ...session,
@@ -190,20 +223,13 @@ export default function SessionPage() {
             ...session.summary,
             actionItems: [
               ...session.summary.actionItems,
-              {
-                id: result.id,
-                summaryId: session.summary.id,
-                description: newActionItem,
-                completed: false,
-              },
+              { id: result.id, description: newActionItem, completed: false },
             ],
           },
         });
       }
-
       setNewActionItem("");
     } catch (error) {
-      console.error("Failed to add action item:", error);
       alert("שגיאה בהוספת משימה");
     } finally {
       setAddingActionItem(false);
@@ -213,8 +239,6 @@ export default function SessionPage() {
   const handleToggleActionItem = async (itemId: string, completed: boolean) => {
     try {
       await updateActionItem(sessionId, itemId, { completed });
-
-      // Update local state optimistically
       if (session?.summary) {
         setSession({
           ...session,
@@ -227,7 +251,6 @@ export default function SessionPage() {
         });
       }
     } catch (error) {
-      console.error("Failed to update action item:", error);
       alert("שגיאה בעדכון משימה");
     }
   };
@@ -235,438 +258,443 @@ export default function SessionPage() {
   const handleDeleteActionItem = async (itemId: string) => {
     try {
       await deleteActionItem(sessionId, itemId);
-
-      // Update local state optimistically
       if (session?.summary) {
         setSession({
           ...session,
           summary: {
             ...session.summary,
-            actionItems: session.summary.actionItems.filter(
-              (item) => item.id !== itemId
-            ),
+            actionItems: session.summary.actionItems.filter((item) => item.id !== itemId),
           },
         });
       }
     } catch (error) {
-      console.error("Failed to delete action item:", error);
       alert("שגיאה במחיקת משימה");
     }
   };
 
-  // Extract unique speakers with colors
-  const getUniqueSpeakers = () => {
-    if (!session?.transcript?.segments) return [];
+  // Chat handler
+  const handleSendMessage = async () => {
+    if (!chatInput.trim() || isSending) return;
 
-    const speakersMap = new Map<string, { id: string; name: string }>();
+    const userMessage = chatInput.trim();
+    setChatInput("");
+    setChatMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+    setIsSending(true);
 
-    session.transcript.segments.forEach((segment) => {
-      const speakerId = segment.speakerId;
-      if (!speakersMap.has(speakerId)) {
-        speakersMap.set(speakerId, {
-          id: speakerId,
-          name: segment.speakerName || segment.speakerId,
-        });
-      }
-    });
-
-    return Array.from(speakersMap.values()).map((speaker) => ({
-      ...speaker,
-      color: getSpeakerColor(speaker.id, speakerColorMap),
-    }));
-  };
-
-  const handleSpeakersUpdate = (updatedSpeakers: any[]) => {
-    // Refresh the session to get updated speaker names
-    if (session) {
-      const fetchStatus = async () => {
-        try {
-          const status = await getTranscriptionStatus(sessionId);
-          setSession(status);
-        } catch (err: any) {
-          console.error("Failed to refresh session:", err);
-        }
-      };
-      fetchStatus();
+    try {
+      const response = await sendChatMessage(sessionId, userMessage);
+      setChatMessages((prev) => [...prev, { role: "assistant", content: response.content }]);
+    } catch (error) {
+      setChatMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "שגיאה בקבלת תשובה. נסה שוב." },
+      ]);
+    } finally {
+      setIsSending(false);
     }
   };
 
+  // Get raw transcript text
+  const getRawTranscript = () => {
+    if (!session?.transcript?.segments) return "";
+    return session.transcript.segments
+      .map((seg) => `${seg.speakerName || seg.speakerId}: ${seg.text}`)
+      .join("\n\n");
+  };
+
+  // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-background py-8 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="mb-6">
-            <button
-              onClick={() => router.push("/")}
-              className="text-primary hover:text-primary-hover mb-4 inline-flex items-center gap-2"
-            >
-              <svg className="w-5 h-5 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
-              חזור
-            </button>
-            <div className="h-8 bg-border rounded w-1/3 mb-2 animate-pulse"></div>
-            <div className="h-4 bg-border rounded w-1/4 animate-pulse"></div>
-          </div>
-
-          <LoadingSkeleton type="card" count={1} />
-          <div className="mt-6">
-            <LoadingSkeleton type="transcript" count={1} />
-          </div>
-          <div className="mt-6">
-            <LoadingSkeleton type="list" count={1} />
-          </div>
+      <div className="min-h-screen bg-[#F5F7FA] flex items-center justify-center" dir="rtl">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-[#2B3A67] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-[#6B7280]">טוען שיחה...</p>
         </div>
       </div>
     );
   }
 
+  // Error state
   if (error) {
     return (
-      <div className="min-h-screen bg-background py-8 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="mb-6">
-            <button
-              onClick={() => router.push("/")}
-              className="text-primary hover:text-primary-hover mb-4 inline-flex items-center gap-2"
-            >
-              <svg className="w-5 h-5 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
-              חזור
-            </button>
-            <h1 className="text-3xl font-bold text-text-primary mb-2">שגיאה בטעינת הפגישה</h1>
+      <div className="min-h-screen bg-[#F5F7FA] flex items-center justify-center" dir="rtl">
+        <div className="bg-white rounded-[10px] p-8 max-w-md text-center" style={{ boxShadow: "0 6px 18px rgba(0,0,0,0.05)" }}>
+          <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </div>
-
-          <ErrorMessage
-            message={error}
-            onRetry={() => window.location.reload()}
-            retryLabel="טען מחדש"
-          />
+          <h2 className="text-[18px] font-semibold text-[#1F2937] mb-2">שגיאה בטעינת השיחה</h2>
+          <p className="text-[14px] text-[#6B7280] mb-6">{error}</p>
+          <Link href="/conversations" className="text-[#2B3A67] hover:underline text-[14px]">
+            חזור לשיחות
+          </Link>
         </div>
       </div>
     );
   }
 
-  if (!session) {
+  // Processing state
+  if (session?.status === "processing" || session?.status === "pending") {
     return (
-      <div className="min-h-screen bg-background py-8 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="mb-6">
-            <button
-              onClick={() => router.push("/")}
-              className="text-primary hover:text-primary-hover mb-4 inline-flex items-center gap-2"
-            >
-              <svg className="w-5 h-5 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
-              חזור
-            </button>
-          </div>
+      <div className="min-h-screen bg-[#F5F7FA] flex items-center justify-center" dir="rtl">
+        <div className="bg-white rounded-[10px] p-8 max-w-md text-center" style={{ boxShadow: "0 6px 18px rgba(0,0,0,0.05)" }}>
+          <div className="w-16 h-16 border-4 border-[#2B3A67] border-t-transparent rounded-full animate-spin mx-auto mb-6" />
+          <h2 className="text-[20px] font-semibold text-[#1F2937] mb-2">מעבד את השיחה...</h2>
+          <p className="text-[14px] text-[#6B7280] mb-4">התמלול והסיכום יהיו מוכנים בקרוב</p>
+          <p className="text-[13px] text-[#9CA3AF]">זה עשוי לקחת מספר דקות</p>
+        </div>
+      </div>
+    );
+  }
 
-          <div className="bg-surface rounded-lg shadow-lg p-12">
-            <div className="flex items-center justify-center">
-              <div className="text-center max-w-md">
-                <svg className="w-16 h-16 mx-auto text-text-tertiary mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <h3 className="text-lg font-semibold text-text-primary mb-2">לא נמצאה פגישה</h3>
-                <p className="text-text-secondary mb-6">
-                  הפגישה המבוקשת אינה קיימת או שהוסרה
-                </p>
-                <button
-                  onClick={() => router.push("/")}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium"
-                >
-                  חזור לדף הבית
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                  </svg>
-                </button>
-              </div>
-            </div>
+  // Failed state
+  if (session?.status === "failed") {
+    return (
+      <div className="min-h-screen bg-[#F5F7FA] flex items-center justify-center" dir="rtl">
+        <div className="bg-white rounded-[10px] p-8 max-w-md text-center" style={{ boxShadow: "0 6px 18px rgba(0,0,0,0.05)" }}>
+          <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
           </div>
+          <h2 className="text-[18px] font-semibold text-[#1F2937] mb-2">התמלול נכשל</h2>
+          <p className="text-[14px] text-[#6B7280] mb-6">{session.error || "אירעה שגיאה בעיבוד השיחה"}</p>
+          <Link href="/conversations" className="text-[#2B3A67] hover:underline text-[14px]">
+            חזור לשיחות
+          </Link>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background py-8 px-4">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-[#F5F7FA]" dir="rtl">
+      <div className="max-w-[1200px] mx-auto px-6 py-8">
         {/* Header */}
-        <div className="mb-6">
-          <button
-            onClick={() => router.push("/")}
-            className="text-primary hover:text-primary-hover mb-4 inline-flex items-center gap-2"
-          >
-            <svg className="w-5 h-5 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+        <header className="mb-6">
+          <Link href="/conversations" className="text-[14px] text-[#6B7280] hover:text-[#1F2937] inline-flex items-center gap-2 mb-4">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
-            חזור
-          </button>
-          <h1 className="text-3xl font-bold text-text-primary mb-2">תמלול פגישה</h1>
-          <p className="text-text-secondary">{session.audioFileName}</p>
+            חזור לשיחות
+          </Link>
+          <h1 className="text-[24px] font-bold text-[#1F2937] mb-2">פרטי השיחה</h1>
+          <div className="text-[14px] text-[#6B7280]">
+            {session?.audioFileName} • {duration > 0 ? formatTime(duration) : "--:--"} דקות • עברית
+          </div>
+        </header>
 
-          {/* Audio Player */}
-          {session.audioFileUrl && (
-            <div className="mt-4">
-              <MeetingAudioPlayer
-                audioUrl={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}${session.audioFileUrl}`}
-              />
+        {/* Audio Player Card */}
+        {session?.audioFileUrl && (
+          <section
+            className="bg-white rounded-[10px] p-5 mb-6"
+            style={{ boxShadow: "0 6px 18px rgba(0,0,0,0.05)" }}
+          >
+            <audio
+              ref={audioRef}
+              src={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}${session.audioFileUrl}`}
+              onTimeUpdate={handleTimeUpdate}
+              onLoadedMetadata={handleLoadedMetadata}
+              onEnded={() => setIsPlaying(false)}
+            />
+            <div className="flex items-center gap-4">
+              {/* Play/Pause */}
+              <button
+                onClick={togglePlay}
+                className="w-10 h-10 bg-[#2B3A67] hover:bg-[#243053] rounded-full flex items-center justify-center text-white transition-colors"
+              >
+                {isPlaying ? (
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5 mr-[-2px]" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                )}
+              </button>
+
+              {/* Progress */}
+              <div className="flex-1 flex items-center gap-3">
+                <span className="text-[13px] text-[#6B7280] w-12 text-left">{formatTime(currentTime)}</span>
+                <input
+                  type="range"
+                  min="0"
+                  max={duration || 0}
+                  value={currentTime}
+                  onChange={handleSeek}
+                  className="flex-1 h-1.5 bg-[#E5E7EB] rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-[#2B3A67] [&::-webkit-slider-thumb]:rounded-full"
+                />
+                <span className="text-[13px] text-[#6B7280] w-12">{formatTime(duration)}</span>
+              </div>
+
+              {/* Speed */}
+              <button
+                onClick={changePlaybackRate}
+                className="px-3 py-1.5 bg-[#F5F7FA] rounded-md text-[13px] text-[#1F2937] font-medium hover:bg-[#E5E7EB] transition-colors"
+              >
+                {playbackRate}x
+              </button>
             </div>
-          )}
-        </div>
-
-        {/* Status Card */}
-        <div className="bg-surface rounded-lg shadow-lg p-6 mb-6">
-          <div className="flex items-center gap-4">
-            {session.status === "processing" || session.status === "pending" ? (
-              <>
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                <div>
-                  <h3 className="font-semibold text-text-primary">מעבד את התמלול...</h3>
-                  <p className="text-sm text-text-secondary">זה יכול לקחת מספר דקות</p>
-                </div>
-              </>
-            ) : session.status === "completed" ? (
-              <>
-                <div className="text-success">
-                  <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-text-primary">התמלול הושלם!</h3>
-                  <p className="text-sm text-text-secondary">התמלול והסיכום מוכנים</p>
-                </div>
-              </>
-            ) : session.status === "failed" ? (
-              <>
-                <div className="text-error">
-                  <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-text-primary">התמלול נכשל</h3>
-                  <p className="text-sm text-text-secondary">{session.error || "אירעה שגיאה לא ידועה"}</p>
-                  {session.error?.includes("API key") && (
-                    <button
-                      onClick={() => router.push("/settings")}
-                      className="btn-primary mt-3"
-                    >
-                      הגדר מפתח API
-                    </button>
-                  )}
-                </div>
-              </>
-            ) : null}
-          </div>
-        </div>
-
-        {/* Context */}
-        {session.context && (
-          <div className="bg-surface rounded-lg shadow-lg p-6 mb-6">
-            <h3 className="font-semibold text-text-primary mb-3">הקשר הפגישה</h3>
-            <p className="text-text-secondary">{session.context}</p>
-          </div>
+          </section>
         )}
 
-        {/* Transcript */}
-        {session.transcript && session.transcript.segments.length > 0 && (
-          <div className="bg-surface rounded-lg shadow-lg p-6 mb-6">
-            <h3 className="font-semibold text-text-primary mb-4">תמלול</h3>
-            <div className="max-h-[70vh] overflow-y-auto space-y-4 px-2 scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent">
-              {session.transcript.segments.map((segment, idx) => {
-                const colors = getSpeakerColor(segment.speakerId, speakerColorMap);
-                const hasTimestamp = segment.startTime > 0;
-
+        {/* Two-Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-[35%_1fr] gap-6">
+          {/* LEFT: Transcript */}
+          <aside
+            className="bg-white rounded-[10px] p-5 lg:order-1 order-2"
+            style={{ boxShadow: "0 6px 18px rgba(0,0,0,0.05)" }}
+          >
+            <h2 className="text-[16px] font-semibold text-[#1F2937] mb-4">תמלול השיחה</h2>
+            <div className="max-h-[60vh] overflow-y-auto space-y-3 scrollbar-thin">
+              {session?.transcript?.segments.map((segment, idx) => {
+                const bgColor = getSpeakerColor(segment.speakerId, speakerColorMapRef.current);
                 return (
-                  <div key={idx} className={`border-r-4 ${colors.border} ${colors.bg} rounded-r-lg pr-4 py-2 transition-all hover:shadow-sm`}>
-                    <div className="flex items-baseline gap-2 mb-1">
-                      <span className={`font-semibold ${colors.text}`}>{segment.speakerName || segment.speakerId}</span>
-                      {hasTimestamp && (
-                        <span className="text-xs text-text-tertiary">
-                          {Math.floor(segment.startTime / 60)}:{String(Math.floor(segment.startTime % 60)).padStart(2, '0')}
-                        </span>
-                      )}
+                  <div
+                    key={idx}
+                    className="rounded-[10px] p-3"
+                    style={{ backgroundColor: bgColor }}
+                  >
+                    <div className="text-[12px] text-[#6B7280] mb-1">
+                      {segment.speakerName || segment.speakerId} • {formatTime(segment.startTime)}
                     </div>
-                    <p className="text-text-primary whitespace-pre-wrap">{segment.text}</p>
+                    <p className="text-[14px] text-[#1F2937] leading-relaxed">{segment.text}</p>
                   </div>
                 );
               })}
-            </div>
-          </div>
-        )}
-
-        {/* Speaker Editor */}
-        {session.transcript && session.transcript.segments.length > 0 && (
-          <div className="mb-6">
-            <SpeakerEditor
-              sessionId={sessionId}
-              speakers={getUniqueSpeakers()}
-              onUpdate={handleSpeakersUpdate}
-            />
-          </div>
-        )}
-
-        {/* Summary */}
-        {session.summary && (
-          <div className="bg-surface rounded-lg shadow-lg p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-text-primary">סיכום</h3>
-              {!isEditingSummary ? (
-                <button
-                  onClick={handleEditSummary}
-                  className="text-sm text-primary hover:text-primary-hover flex items-center gap-1"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                  ערוך
-                </button>
-              ) : (
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleSaveSummary}
-                    disabled={savingSummary}
-                    className="text-sm px-3 py-1 bg-primary text-white rounded hover:bg-primary-hover disabled:opacity-50"
-                  >
-                    {savingSummary ? "שומר..." : "שמור"}
-                  </button>
-                  <button
-                    onClick={handleCancelEditSummary}
-                    disabled={savingSummary}
-                    className="text-sm px-3 py-1 bg-background text-text-primary rounded hover:bg-border disabled:opacity-50"
-                  >
-                    ביטול
-                  </button>
-                </div>
+              {(!session?.transcript?.segments || session.transcript.segments.length === 0) && (
+                <p className="text-[14px] text-[#6B7280] text-center py-8">אין תמלול זמין</p>
               )}
             </div>
+          </aside>
 
-            {/* Overview */}
-            <div className="mb-6">
-              <h4 className="font-medium text-text-primary mb-2">סקירה כללית</h4>
-              {isEditingSummary ? (
-                <textarea
-                  value={editedOverview}
-                  onChange={(e) => setEditedOverview(e.target.value)}
-                  className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-                  rows={4}
-                />
-              ) : (
-                <p className="text-text-secondary">{session.summary.overview}</p>
-              )}
+          {/* RIGHT: Tabs */}
+          <section
+            className="bg-white rounded-[10px] p-5 lg:order-2 order-1"
+            style={{ boxShadow: "0 6px 18px rgba(0,0,0,0.05)" }}
+          >
+            {/* Tabs */}
+            <div className="flex gap-2 border-b border-[#E5E7EB] mb-5">
+              <button
+                onClick={() => setActiveTab("summary")}
+                className={`px-4 py-2.5 text-[14px] font-medium transition-colors ${
+                  activeTab === "summary"
+                    ? "text-[#2B3A67] border-b-2 border-[#2B3A67]"
+                    : "text-[#6B7280] hover:text-[#1F2937]"
+                }`}
+              >
+                סיכום
+              </button>
+              <button
+                onClick={() => setActiveTab("qa")}
+                className={`px-4 py-2.5 text-[14px] font-medium transition-colors ${
+                  activeTab === "qa"
+                    ? "text-[#2B3A67] border-b-2 border-[#2B3A67]"
+                    : "text-[#6B7280] hover:text-[#1F2937]"
+                }`}
+              >
+                שאלות AI
+              </button>
+              <button
+                onClick={() => setActiveTab("raw")}
+                className={`px-4 py-2.5 text-[14px] font-medium transition-colors ${
+                  activeTab === "raw"
+                    ? "text-[#2B3A67] border-b-2 border-[#2B3A67]"
+                    : "text-[#6B7280] hover:text-[#1F2937]"
+                }`}
+              >
+                תוכן גולמי
+              </button>
             </div>
 
-            {/* Key Points */}
-            <div className="mb-6">
-              <h4 className="font-medium text-text-primary mb-2">נקודות עיקריות</h4>
-              {isEditingSummary ? (
-                <div className="space-y-2">
-                  {editedKeyPoints.map((point, idx) => (
-                    <div key={idx} className="flex gap-2">
-                      <input
-                        type="text"
-                        value={point}
-                        onChange={(e) => handleUpdateKeyPoint(idx, e.target.value)}
-                        className="flex-1 px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                      />
-                      <button
-                        onClick={() => handleRemoveKeyPoint(idx)}
-                        className="text-error hover:text-error/80"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    onClick={handleAddKeyPoint}
-                    className="text-sm text-primary hover:text-primary-hover flex items-center gap-1"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    הוסף נקודה
-                  </button>
-                </div>
-              ) : (
-                <ul className="list-disc list-inside space-y-1">
-                  {session.summary.keyPoints.map((point, idx) => (
-                    <li key={idx} className="text-text-secondary">{point}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            {/* Action Items */}
-            <div>
-              <h4 className="font-medium text-text-primary mb-2">משימות</h4>
-              <div className="space-y-2">
-                {session.summary.actionItems.map((item) => (
-                  <div key={item.id} className="flex items-start gap-2 group">
-                    <input
-                      type="checkbox"
-                      checked={item.completed}
-                      onChange={(e) => item.id && handleToggleActionItem(item.id, e.target.checked)}
-                      className="mt-1"
-                    />
-                    <div className="flex-1">
-                      <p className={`text-text-secondary ${item.completed ? 'line-through opacity-60' : ''}`}>
-                        {item.description}
-                      </p>
-                      {item.assignee && (
-                        <span className="text-xs text-text-tertiary">אחראי: {item.assignee}</span>
+            {/* Summary Tab */}
+            {activeTab === "summary" && (
+              <div className="space-y-6">
+                {session?.summary ? (
+                  <>
+                    {/* Overview */}
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-[15px] font-semibold text-[#1F2937]">סיכום השיחה</h3>
+                        {!isEditingSummary && (
+                          <button
+                            onClick={handleEditSummary}
+                            className="text-[13px] text-[#2B3A67] hover:underline"
+                          >
+                            ערוך
+                          </button>
+                        )}
+                      </div>
+                      {isEditingSummary ? (
+                        <div className="space-y-3">
+                          <textarea
+                            value={editedOverview}
+                            onChange={(e) => setEditedOverview(e.target.value)}
+                            className="w-full h-24 px-3 py-2 border border-[#E5E7EB] rounded-[8px] text-[14px] focus:outline-none focus:ring-2 focus:ring-[#2B3A67] resize-none"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={handleSaveSummary}
+                              disabled={savingSummary}
+                              className="px-4 py-2 bg-[#2B3A67] text-white text-[13px] rounded-[8px] hover:bg-[#243053] disabled:opacity-50"
+                            >
+                              {savingSummary ? "שומר..." : "שמור"}
+                            </button>
+                            <button
+                              onClick={handleCancelEditSummary}
+                              className="px-4 py-2 bg-[#F5F7FA] text-[#1F2937] text-[13px] rounded-[8px] hover:bg-[#E5E7EB]"
+                            >
+                              ביטול
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-[14px] text-[#6B7280] leading-relaxed">
+                          {session.summary.overview}
+                        </p>
                       )}
                     </div>
-                    <button
-                      onClick={() => item.id && handleDeleteActionItem(item.id)}
-                      className="opacity-0 group-hover:opacity-100 text-error hover:text-error/80 transition-opacity"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
 
-                {/* Add new action item */}
-                <div className="flex gap-2 mt-3">
+                    {/* Key Points */}
+                    <div>
+                      <h4 className="text-[14px] font-semibold text-[#1F2937] mb-3">נקודות עיקריות</h4>
+                      <ul className="space-y-2">
+                        {session.summary.keyPoints.map((point, idx) => (
+                          <li key={idx} className="flex items-start gap-2">
+                            <span className="text-[#2B3A67] mt-1">•</span>
+                            <span className="text-[14px] text-[#6B7280]">{point}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {/* Action Items */}
+                    <div>
+                      <h4 className="text-[14px] font-semibold text-[#1F2937] mb-3">משימות</h4>
+                      <div className="space-y-2">
+                        {session.summary.actionItems.map((item) => (
+                          <div key={item.id} className="flex items-start gap-3 group">
+                            <input
+                              type="checkbox"
+                              checked={item.completed || false}
+                              onChange={(e) => item.id && handleToggleActionItem(item.id, e.target.checked)}
+                              className="mt-1 w-4 h-4 accent-[#2B3A67]"
+                            />
+                            <span
+                              className={`flex-1 text-[14px] ${
+                                item.completed ? "text-[#9CA3AF] line-through" : "text-[#6B7280]"
+                              }`}
+                            >
+                              {item.description}
+                            </span>
+                            <button
+                              onClick={() => item.id && handleDeleteActionItem(item.id)}
+                              className="opacity-0 group-hover:opacity-100 text-[#9CA3AF] hover:text-red-500 transition-all"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+
+                        {/* Add new task */}
+                        <div className="flex gap-2 mt-3">
+                          <input
+                            type="text"
+                            value={newActionItem}
+                            onChange={(e) => setNewActionItem(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && handleAddActionItem()}
+                            placeholder="הוסף משימה חדשה..."
+                            className="flex-1 h-[40px] px-3 border border-[#E5E7EB] rounded-[8px] text-[14px] focus:outline-none focus:ring-2 focus:ring-[#2B3A67]"
+                          />
+                          <button
+                            onClick={handleAddActionItem}
+                            disabled={addingActionItem || !newActionItem.trim()}
+                            className="px-4 h-[40px] bg-[#2B3A67] text-white text-[13px] rounded-[8px] hover:bg-[#243053] disabled:opacity-50"
+                          >
+                            {addingActionItem ? "..." : "הוסף"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-[14px] text-[#6B7280] text-center py-8">אין סיכום זמין</p>
+                )}
+              </div>
+            )}
+
+            {/* Q&A Tab */}
+            {activeTab === "qa" && (
+              <div className="flex flex-col h-[50vh]">
+                <h3 className="text-[15px] font-semibold text-[#1F2937] mb-4">שאלות ותשובות</h3>
+
+                {/* Chat Messages */}
+                <div className="flex-1 overflow-y-auto space-y-3 mb-4">
+                  {chatMessages.length === 0 && (
+                    <p className="text-[14px] text-[#9CA3AF] text-center py-8">
+                      שאל שאלה על השיחה...
+                    </p>
+                  )}
+                  {chatMessages.map((msg, idx) => (
+                    <div
+                      key={idx}
+                      className={`rounded-[10px] p-3 max-w-[85%] ${
+                        msg.role === "user"
+                          ? "bg-[#2B3A67] text-white mr-auto"
+                          : "bg-[#F5F7FA] text-[#1F2937] ml-auto"
+                      }`}
+                    >
+                      <p className="text-[14px] leading-relaxed">{msg.content}</p>
+                    </div>
+                  ))}
+                  {isSending && (
+                    <div className="bg-[#F5F7FA] rounded-[10px] p-3 max-w-[85%] ml-auto">
+                      <div className="flex gap-1">
+                        <div className="w-2 h-2 bg-[#9CA3AF] rounded-full animate-bounce" />
+                        <div className="w-2 h-2 bg-[#9CA3AF] rounded-full animate-bounce [animation-delay:0.1s]" />
+                        <div className="w-2 h-2 bg-[#9CA3AF] rounded-full animate-bounce [animation-delay:0.2s]" />
+                      </div>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+
+                {/* Input */}
+                <div className="flex gap-2">
                   <input
                     type="text"
-                    value={newActionItem}
-                    onChange={(e) => setNewActionItem(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        handleAddActionItem();
-                      }
-                    }}
-                    placeholder="משימה חדשה..."
-                    className="flex-1 px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+                    placeholder="שאל שאלה על השיחה..."
+                    className="flex-1 h-[44px] px-4 border border-[#E5E7EB] rounded-[8px] text-[14px] focus:outline-none focus:ring-2 focus:ring-[#2B3A67]"
                   />
                   <button
-                    onClick={handleAddActionItem}
-                    disabled={addingActionItem || !newActionItem.trim()}
-                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50"
+                    onClick={handleSendMessage}
+                    disabled={!chatInput.trim() || isSending}
+                    className="px-5 h-[44px] bg-[#2B3A67] text-white text-[14px] font-medium rounded-[8px] hover:bg-[#243053] disabled:opacity-50 transition-colors"
                   >
-                    {addingActionItem ? "מוסיף..." : "הוסף"}
+                    שלח
                   </button>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
+            )}
 
-        {/* Chat */}
-        {session.status === "completed" && (
-          <div className="mb-6">
-            <ChatBox sessionId={sessionId} />
-          </div>
-        )}
+            {/* Raw Tab */}
+            {activeTab === "raw" && (
+              <div>
+                <h3 className="text-[15px] font-semibold text-[#1F2937] mb-4">תוכן גולמי</h3>
+                <pre className="bg-[#F5F7FA] rounded-[8px] p-4 text-[13px] text-[#1F2937] leading-relaxed max-h-[50vh] overflow-auto whitespace-pre-wrap font-sans">
+                  {getRawTranscript() || "אין תוכן זמין"}
+                </pre>
+              </div>
+            )}
+          </section>
+        </div>
       </div>
     </div>
   );

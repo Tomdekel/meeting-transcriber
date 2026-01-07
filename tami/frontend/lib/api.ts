@@ -1,7 +1,11 @@
 import axios, { AxiosInstance, AxiosError } from "axios";
 import { supabase } from "./supabase";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// Use environment variable, or production backend URL, or localhost for development
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ||
+  (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+    ? "https://backend-seven-brown-94.vercel.app"
+    : "http://localhost:8000");
 
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({

@@ -1,264 +1,397 @@
-# Tami - Meeting Transcriber Web UI
+# Tami - תמי | Hebrew Meeting Transcriber
 
-A modern web application for transcribing, summarizing, and chatting with meeting recordings. Built with Next.js, FastAPI, and PostgreSQL, featuring Monday.com-inspired design and full Hebrew RTL support.
+A modern web application for recording, transcribing, and summarizing meetings in Hebrew. Built with Next.js, FastAPI, Supabase, and deployed on Vercel.
 
-## ✨ Features
+**Live Demo:** [https://frontend-delta-ten-62.vercel.app](https://frontend-delta-ten-62.vercel.app)
 
-- 📤 **File Upload**: Drag-and-drop or file selection for audio files
-- 🎤 **Transcription**: Multiple providers (Whisper, Ivrit.ai) with Hebrew support
-- 👥 **Speaker Management**: Automatic speaker detection with editable names
-- 📝 **Smart Summaries**: AI-generated meeting summaries with key points and action items
-- 💬 **Interactive Chat**: Q&A about meeting content using GPT-4o mini
-- ⚙️ **Settings**: API key management and model selection
-- 🌐 **RTL Support**: Full Hebrew right-to-left layout
-- 🎨 **Modern Design**: Monday.com-inspired UI with Tailwind CSS
+## Features
 
-## 🏗️ Architecture
+- **Live Recording**: Record meetings directly in the browser
+  - Room mode: Record via microphone for in-person meetings
+  - Online mode: Capture system audio from Zoom/Meet calls
+- **File Upload**: Upload existing audio recordings (MP3, M4A, WAV, WebM)
+- **Hebrew Transcription**: Powered by Ivrit.ai for accurate Hebrew speech-to-text
+- **AI Summaries**: GPT-4o mini generates meeting summaries, key points, and action items
+- **Interactive Chat**: Ask questions about your meeting content
+- **Speaker Diarization**: Automatic speaker detection with editable names
+- **RTL Design**: Full Hebrew right-to-left layout with modern UI
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                           USER INTERFACE                             │
+│                    (Next.js 14 on Vercel)                           │
+│                                                                      │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐               │
+│  │   Record     │  │   Upload     │  │   Session    │               │
+│  │   Meeting    │  │   Audio      │  │   View       │               │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘               │
+│         │                 │                 │                        │
+│         └────────────┬────┴────────────────┘                        │
+│                      │                                               │
+└──────────────────────┼───────────────────────────────────────────────┘
+                       │ HTTPS
+                       ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                         BACKEND API                                   │
+│                    (FastAPI on Vercel)                               │
+│                                                                       │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐     │
+│  │  /upload   │  │/transcribe │  │ /sessions  │  │   /chat    │     │
+│  └─────┬──────┘  └─────┬──────┘  └─────┬──────┘  └─────┬──────┘     │
+│        │               │               │               │             │
+└────────┼───────────────┼───────────────┼───────────────┼─────────────┘
+         │               │               │               │
+         ▼               ▼               ▼               ▼
+┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+│  Supabase   │  │  Ivrit.ai   │  │  Supabase   │  │   OpenAI    │
+│  Storage    │  │ Transcribe  │  │  Postgres   │  │   GPT-4o    │
+└─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘
+```
+
+## Full Pipeline
+
+### 1. Recording/Upload Flow
+
+```
+User starts recording
+        │
+        ▼
+┌───────────────────────┐
+│  Browser MediaRecorder │
+│  (WebM/Opus format)    │
+└───────────┬───────────┘
+            │
+            ▼
+┌───────────────────────┐
+│  POST /api/upload     │
+│  - Validates file     │
+│  - Uploads to Supabase│
+│    Storage bucket     │
+│  - Returns uploadId   │
+└───────────┬───────────┘
+            │
+            ▼
+┌───────────────────────┐
+│ POST /api/transcribe  │
+│  - Creates session    │
+│  - Queues job         │
+└───────────┬───────────┘
+            │
+            ▼
+┌───────────────────────┐
+│  Background Worker    │
+│  (Cron job)           │
+│  - Fetches audio      │
+│  - Calls Ivrit.ai API │
+│  - Processes result   │
+│  - Calls GPT-4o mini  │
+│  - Saves transcript   │
+│  - Saves summary      │
+└───────────────────────┘
+```
+
+### 2. Transcription Pipeline
+
+```
+Audio File (WebM/MP3/M4A)
+        │
+        ▼
+┌───────────────────────┐
+│   Ivrit.ai Whisper    │
+│   - Hebrew-optimized  │
+│   - Speaker diarize   │
+│   - Timestamps        │
+└───────────┬───────────┘
+            │
+            ▼
+┌───────────────────────┐
+│   GPT-4o Refinement   │
+│   - Fix transcription │
+│     errors            │
+│   - Context-aware     │
+│   - Hebrew cleanup    │
+└───────────┬───────────┘
+            │
+            ▼
+┌───────────────────────┐
+│   GPT-4o mini Summary │
+│   - Overview          │
+│   - Key points        │
+│   - Action items      │
+│   - Decisions         │
+└───────────────────────┘
+```
+
+### 3. Data Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     SUPABASE POSTGRES                        │
+│                                                              │
+│  ┌─────────────┐      ┌─────────────┐      ┌─────────────┐ │
+│  │   Session   │──────│ Transcript  │──────│   Segment   │ │
+│  │             │      │             │      │   (lines)   │ │
+│  └─────────────┘      └─────────────┘      └─────────────┘ │
+│        │                                                    │
+│        │              ┌─────────────┐      ┌─────────────┐ │
+│        └──────────────│   Summary   │──────│ ActionItem  │ │
+│                       │             │      │             │ │
+│                       └─────────────┘      └─────────────┘ │
+│                                                             │
+│  ┌─────────────┐      ┌─────────────┐                      │
+│  │    User     │──────│   Job       │  (background tasks)  │
+│  │ (Supabase   │      │   Queue     │                      │
+│  │    Auth)    │      │             │                      │
+│  └─────────────┘      └─────────────┘                      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Tech Stack
+
+### Frontend
+- **Framework**: Next.js 14 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Auth**: Supabase Auth
+- **State**: React hooks
+- **HTTP**: Axios
+- **Deployment**: Vercel
+
+### Backend
+- **Framework**: FastAPI
+- **Language**: Python 3.11
+- **Database**: Supabase PostgreSQL (via Prisma)
+- **Storage**: Supabase Storage
+- **Auth**: Supabase JWT verification
+- **Deployment**: Vercel Serverless Functions
+
+### External Services
+- **Transcription**: Ivrit.ai (Hebrew Whisper)
+- **AI/LLM**: OpenAI GPT-4o, GPT-4o mini
+- **Auth & DB**: Supabase
+- **Hosting**: Vercel
+
+## Project Structure
 
 ```
 tami/
-├── frontend/          # Next.js 14 application
-├── backend/           # FastAPI backend
-├── shared/           # Shared Prisma schema
-└── docker-compose.yml # PostgreSQL setup
+├── frontend/                 # Next.js application
+│   ├── app/                  # App Router pages
+│   │   ├── conversations/    # Main conversation flow
+│   │   │   ├── new/          # New recording/upload
+│   │   │   └── page.tsx      # List all conversations
+│   │   ├── session/[id]/     # Session detail view
+│   │   ├── login/            # Auth pages
+│   │   ├── signup/
+│   │   └── page.tsx          # Landing page
+│   ├── components/           # React components
+│   ├── lib/                  # Utilities
+│   │   ├── api.ts            # API client
+│   │   ├── auth-context.tsx  # Auth provider
+│   │   └── supabase.ts       # Supabase client
+│   └── package.json
+│
+├── backend/                  # FastAPI application
+│   ├── api/                  # Vercel serverless handlers
+│   │   └── index.py          # Main entry point
+│   ├── app/                  # Application code
+│   │   ├── main.py           # FastAPI app
+│   │   ├── routers/          # API routes
+│   │   │   ├── upload.py
+│   │   │   ├── transcription.py
+│   │   │   ├── sessions.py
+│   │   │   └── chat.py
+│   │   └── services/         # Business logic
+│   │       ├── ivrit_transcription.py
+│   │       ├── transcript_refinement.py
+│   │       └── summary.py
+│   ├── lib/                  # Shared utilities
+│   │   ├── prisma.py         # Database client
+│   │   └── supabase.py       # Supabase client
+│   ├── requirements.txt
+│   └── vercel.json
+│
+├── shared/                   # Shared resources
+│   └── prisma/
+│       └── schema.prisma     # Database schema
+│
+└── README.md
 ```
 
-### Tech Stack
+## Environment Variables
 
-**Frontend:**
-- Next.js 14 (App Router)
-- React 18
-- TypeScript
-- Tailwind CSS
-- shadcn/ui components
-- React Query (@tanstack/react-query)
-- Zustand (state management)
+### Frontend (.env.local)
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+NEXT_PUBLIC_API_URL=http://localhost:8000  # Optional, auto-detects in prod
+```
 
-**Backend:**
-- FastAPI
-- Python 3.11+
-- Prisma ORM
-- PostgreSQL
-- OpenAI API (Whisper, GPT-4o mini)
+### Backend (.env)
+```bash
+# Database
+DATABASE_URL=postgresql://...
+DIRECT_DATABASE_URL=postgresql://...
 
-## 🚀 Quick Start
+# Supabase
+SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_KEY=eyJ...
+
+# AI Services
+OPENAI_API_KEY=sk-...
+IVRIT_API_KEY=...
+RUNPOD_API_KEY=...
+
+# Security
+JWT_SECRET=your-jwt-secret
+```
+
+## Local Development
 
 ### Prerequisites
-
-- Node.js 18+ and npm/yarn
+- Node.js 18+
 - Python 3.11+
-- Docker and Docker Compose (for PostgreSQL)
+- Supabase account
 - OpenAI API key
+- Ivrit.ai API key
 
-### 1. Clone and Navigate
-
+### 1. Clone Repository
 ```bash
-cd tami
+git clone https://github.com/Tomdekel/meeting-transcriber.git
+cd meeting-transcriber/tami
 ```
 
-### 2. Start PostgreSQL
-
-```bash
-docker-compose up -d
-```
-
-This starts PostgreSQL on port 5432.
-
-### 3. Set up Backend
-
+### 2. Backend Setup
 ```bash
 cd backend
 
 # Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
 
 # Configure environment
 cp .env.example .env
-# Edit .env and add your configuration
+# Edit .env with your credentials
 
-# Generate Prisma client and create database tables
+# Generate Prisma client
 prisma generate --schema=../shared/prisma/schema.prisma
-prisma db push --schema=../shared/prisma/schema.prisma
 
-# Start the server
-uvicorn app.main:app --reload
+# Start server
+uvicorn app.main:app --reload --port 8000
 ```
 
-Backend will be available at http://localhost:8000
-
-### 4. Set up Frontend
-
+### 3. Frontend Setup
 ```bash
-cd ../frontend
+cd frontend
 
 # Install dependencies
 npm install
 
 # Configure environment
 cp .env.local.example .env.local
-# Edit .env.local and add backend URL
+# Edit .env.local with your Supabase credentials
 
 # Start development server
 npm run dev
 ```
 
-Frontend will be available at http://localhost:3000
+### 4. Access Application
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
 
-## 📖 Documentation
+## Deployment
 
-- [Backend README](./backend/README.md) - FastAPI backend documentation
-- [Frontend README](./frontend/README.md) - Next.js frontend documentation
-- [API Documentation](http://localhost:8000/docs) - Interactive API docs (when backend is running)
+### Vercel Deployment
 
-## 🎯 Usage
-
-### 1. Upload Audio File
-
-- Drag and drop or select an audio file (.m4a, .mp3, .wav, etc.)
-- Add meeting context (e.g., "Q4 Planning Meeting")
-- Click "Transcribe"
-
-### 2. View Results
-
-- **Transcript**: Full conversation with speaker labels
-- **Summary**: Overview, key points, and action items
-- **Chat**: Ask questions about the meeting
-
-### 3. Edit Speakers
-
-- Click on speaker names (Speaker 1, Speaker 2, etc.)
-- Assign real names (e.g., "אורי", "תום")
-- Changes apply to entire transcript
-
-### 4. Configure Settings
-
-- Add OpenAI API key
-- Select models (transcription, summary, chat)
-- Choose between best quality and budget options
-- All models support Hebrew
-
-## 🌍 Hebrew Support
-
-Tami is designed for Hebrew meetings:
-
-- **RTL Layout**: Full right-to-left support
-- **Hebrew Fonts**: Rubik font for optimal Hebrew rendering
-- **Hebrew Models**: All AI models selected support Hebrew excellently
-- **Bidirectional Text**: Proper handling of mixed Hebrew/English content
-
-## 🔐 Security
-
-- API keys are encrypted using AES-256 before storage
-- Keys never sent to frontend
-- All API calls authenticated
-- File upload size limits enforced
-- Rate limiting on API endpoints
-
-## 🧪 Development
-
-### Running Tests
-
-**Backend:**
-```bash
-cd backend
-pytest
-```
+Both frontend and backend are deployed on Vercel:
 
 **Frontend:**
 ```bash
 cd frontend
-npm test
+vercel deploy --prod
 ```
 
-### Database Management
-
-View database with Prisma Studio:
+**Backend:**
 ```bash
 cd backend
-prisma studio --schema=../shared/prisma/schema.prisma
+vercel deploy --prod
 ```
 
-Create database migration:
-```bash
-prisma migrate dev --schema=../shared/prisma/schema.prisma --name migration_name
+### Production URLs
+- Frontend: https://frontend-delta-ten-62.vercel.app
+- Backend: https://backend-seven-brown-94.vercel.app
+
+## API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/upload` | POST | Upload audio file |
+| `/api/transcribe` | POST | Start transcription job |
+| `/api/transcribe/{id}/status` | GET | Get job status |
+| `/api/sessions` | GET | List user sessions |
+| `/api/sessions/{id}` | GET | Get session details |
+| `/api/sessions/{id}` | PATCH | Update session |
+| `/api/sessions/{id}` | DELETE | Delete session |
+| `/api/sessions/{id}/speakers` | PATCH | Update speaker names |
+| `/api/chat` | POST | Send chat message |
+| `/api/cron/process-jobs` | POST | Process pending jobs |
+
+## Database Schema
+
+```prisma
+model Session {
+  id            String      @id @default(uuid())
+  userId        String
+  title         String?
+  audioFileName String
+  audioFileUrl  String
+  context       String
+  language      String      @default("he")
+  status        String      @default("pending")
+  transcript    Transcript?
+  summary       Summary?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model Transcript {
+  id        String    @id @default(uuid())
+  sessionId String    @unique
+  session   Session   @relation(...)
+  language  String
+  duration  Float?
+  segments  Segment[]
+}
+
+model Summary {
+  id          String       @id @default(uuid())
+  sessionId   String       @unique
+  session     Session      @relation(...)
+  overview    String
+  keyPoints   String[]
+  actionItems ActionItem[]
+}
 ```
 
-## 📊 Model Options
+## Contributing
 
-### Transcription Models
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-| Provider | Model | Hebrew Support | Cost |
-|----------|-------|----------------|------|
-| OpenAI | whisper-1 | ✅ Excellent | $0.006/min |
-| Ivrit.ai | ivrit-v2 | ✅ Native | TBD |
-
-### Summary/Chat Models
-
-| Provider | Model | Hebrew Support | Cost (per 1M tokens) |
-|----------|-------|----------------|---------------------|
-| OpenAI | gpt-4o-mini | ✅ Excellent | $0.15 / $0.60 |
-| OpenAI | gpt-4o | ✅ Excellent | $5 / $15 |
-| Anthropic | claude-haiku-4 | ✅ Very Good | $0.80 / $4 |
-| Anthropic | claude-sonnet-4-5 | ✅ Very Good | $3 / $15 |
-
-**Recommended**: Whisper + GPT-4o mini (best value)
-
-## 🛣️ Roadmap
-
-### Phase 1: Core Backend ✅
-- [x] FastAPI setup
-- [x] Database schema
-- [x] File upload endpoint
-- [x] Transcription integration
-- [x] API endpoints
-
-### Phase 2: Frontend Foundation (Current)
-- [ ] Next.js setup
-- [ ] Monday.com design system
-- [ ] RTL support
-- [ ] Basic components
-- [ ] File upload UI
-
-### Phase 3: Transcription Flow
-- [ ] Upload page
-- [ ] Status polling
-- [ ] Results display
-- [ ] Speaker editor
-
-### Phase 4: Summary & Chat
-- [ ] Summary display
-- [ ] Action items
-- [ ] Chat interface
-- [ ] Chat history
-
-### Phase 5: Settings & Models
-- [ ] Settings page
-- [ ] API key management
-- [ ] Model selection
-- [ ] Connection testing
-
-### Phase 6: Polish & Testing
-- [ ] Error handling
-- [ ] Loading states
-- [ ] Mobile responsive
-- [ ] User testing
-- [ ] Performance optimization
-
-## 📝 License
+## License
 
 MIT
 
-## 🤝 Contributing
+## Support
 
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 💡 Support
-
-For issues and questions:
-- Open an issue on GitHub
-- Check the [Backend README](./backend/README.md) for backend-specific issues
-- Check the [Frontend README](./frontend/README.md) for frontend-specific issues
+For issues and questions, open a GitHub issue or contact the maintainers.

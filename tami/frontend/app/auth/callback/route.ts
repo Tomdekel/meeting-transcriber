@@ -29,6 +29,6 @@ export async function GET(request: Request) {
     await supabase.auth.exchangeCodeForSession(code)
   }
 
-  // Redirect to transcribe page after successful authentication
-  return NextResponse.redirect(new URL('/transcribe', requestUrl.origin))
+  // Redirect to home page after successful authentication
+  return NextResponse.redirect(new URL('/', requestUrl.origin))
 }

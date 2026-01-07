@@ -14,9 +14,8 @@ export default function ForgotPasswordPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
-    // Redirect if already logged in
     if (user) {
-      router.push('/transcribe')
+      router.push('/conversations')
     }
   }, [user, router])
 
@@ -36,22 +35,28 @@ export default function ForgotPasswordPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-text-secondary">טוען...</div>
+      <div className="min-h-screen flex items-center justify-center bg-[#F7F8FA]" dir="rtl">
+        <div className="text-[#6B7280]">טוען...</div>
       </div>
     )
   }
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="max-w-md w-full p-8 space-y-6 text-center">
-          <div className="text-6xl">📧</div>
-          <h1 className="text-2xl font-bold text-text-primary">בדוק את האימייל שלך</h1>
-          <p className="text-text-secondary">
+      <div className="min-h-screen flex items-center justify-center bg-[#F7F8FA] px-4" dir="rtl">
+        <div
+          className="max-w-[400px] w-full bg-white rounded-[8px] p-8 text-center"
+          style={{ boxShadow: '0 8px 20px rgba(15, 23, 42, 0.06)' }}
+        >
+          <div className="text-[48px] mb-4">📧</div>
+          <h1 className="text-[22px] font-bold text-[#1F2937] mb-2">בדוק את האימייל שלך</h1>
+          <p className="text-[14px] text-[#6B7280] mb-6 leading-relaxed">
             אם הכתובת קיימת במערכת, שלחנו לך קישור לאיפוס הסיסמה.
           </p>
-          <Link href="/login" className="btn-secondary inline-block px-6 py-2">
+          <Link
+            href="/login"
+            className="inline-block h-[44px] px-6 bg-white border border-[#D1D5DB] hover:border-[#9CA3AF] rounded-[8px] text-[#1F2937] font-medium transition-colors leading-[44px]"
+          >
             חזור לדף ההתחברות
           </Link>
         </div>
@@ -60,53 +65,63 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="max-w-md w-full p-8 space-y-8">
-        <div className="text-center space-y-2">
-          <h1 className="text-5xl font-bold text-text-primary">תמי</h1>
-          <p className="text-xl text-text-secondary">איפוס סיסמה</p>
-        </div>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#F7F8FA] px-4" dir="rtl">
+      {/* Header */}
+      <div className="text-center mb-8">
+        <h1 className="text-[30px] font-bold text-[#1F2937] mb-2">תמי</h1>
+        <p className="text-[15px] text-[#6B7280]">איפוס סיסמה</p>
+      </div>
 
-        <div className="space-y-6 pt-4">
-          <p className="text-text-secondary text-center">
-            הזן את כתובת האימייל שלך ונשלח לך קישור לאיפוס הסיסמה
-          </p>
+      {/* Reset Card */}
+      <div
+        className="w-full max-w-[400px] bg-white rounded-[8px] p-8"
+        style={{ boxShadow: '0 8px 20px rgba(15, 23, 42, 0.06)' }}
+      >
+        <p className="text-[14px] text-[#6B7280] text-center mb-6">
+          הזן את כתובת האימייל שלך ונשלח לך קישור לאיפוס הסיסמה
+        </p>
 
-          <form onSubmit={handleResetPassword} className="space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-text-secondary mb-1">
-                אימייל
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full px-4 py-3 rounded-lg border border-border bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="your@email.com"
-                dir="ltr"
-              />
-            </div>
-
-            {error && (
-              <p className="text-error text-sm text-center">{error}</p>
-            )}
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full btn-primary py-3 text-lg disabled:opacity-50"
-            >
-              {isSubmitting ? 'שולח...' : 'שלח קישור לאיפוס'}
-            </button>
-          </form>
-
-          <div className="text-center text-sm">
-            <Link href="/login" className="text-primary hover:underline">
-              חזור לדף ההתחברות
-            </Link>
+        <form onSubmit={handleResetPassword} className="space-y-5">
+          {/* Email Field */}
+          <div>
+            <label htmlFor="email" className="block text-[14px] font-medium text-[#1F2937] mb-2 text-right">
+              אימייל
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className={`w-full h-[44px] px-3 rounded-[8px] border bg-white text-[#1F2937] focus:outline-none focus:ring-2 focus:ring-[#2B3A67] focus:border-transparent ${
+                error ? 'border-[#DC2626]' : 'border-[#E5E7EB]'
+              }`}
+              placeholder="name@company.com"
+              dir="ltr"
+              style={{ textAlign: 'left' }}
+            />
           </div>
+
+          {/* Error Message */}
+          {error && (
+            <p className="text-[#DC2626] text-[13px] text-center">{error}</p>
+          )}
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full h-[44px] bg-[#2B3A67] hover:bg-[#1F2937] text-white font-medium rounded-[8px] transition-colors disabled:opacity-50"
+          >
+            {isSubmitting ? 'שולח...' : 'שלח קישור לאיפוס'}
+          </button>
+        </form>
+
+        {/* Back to Login */}
+        <div className="text-center mt-5">
+          <Link href="/login" className="text-[14px] text-[#2B3A67] hover:underline">
+            חזור לדף ההתחברות
+          </Link>
         </div>
       </div>
     </div>
