@@ -1,19 +1,28 @@
 #!/bin/bash
-set -e
-
+# Don't exit on error initially - we need to find paths first
 echo "Starting Vercel build process..."
 
-# Find Python venv dynamically and add to PATH
-VENV_BIN=$(find /vercel -name "prisma-client-py" -type f 2>/dev/null | head -1 | xargs dirname 2>/dev/null)
-if [ -n "$VENV_BIN" ]; then
-    echo "Found Python venv at: $VENV_BIN"
-    export PATH="$VENV_BIN:$PATH"
-else
-    echo "Warning: Could not find prisma-client-py binary"
-fi
+# Find Python venv - try common Vercel paths
+VENV_PATHS=(
+    "/vercel/path0/.vercel/python/.venv/bin"
+    "/vercel/path1/.vercel/python/.venv/bin"
+    "$HOME/.local/bin"
+    "/usr/local/bin"
+)
+
+for venv_path in "${VENV_PATHS[@]}"; do
+    if [ -d "$venv_path" ] && [ -f "$venv_path/prisma-client-py" ]; then
+        echo "Found prisma-client-py at: $venv_path"
+        export PATH="$venv_path:$PATH"
+        break
+    fi
+done
 
 # Add node_modules/.bin to PATH for prisma command
 export PATH="$PATH:./node_modules/.bin"
+
+# Now exit on errors
+set -e
 
 # Generate Prisma client from local schema
 # This will run both JS and Python generators defined in schema.prisma
