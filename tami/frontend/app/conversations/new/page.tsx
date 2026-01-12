@@ -258,8 +258,8 @@ function NewConversationContent() {
         uploadId: uploadResponse.uploadId,
         context: context.trim() || "פגישה",
         participants: participants.trim() ? participants.split(",").map((p) => p.trim()).filter(Boolean) : undefined,
-        transcriptionProvider: "ivrit",
-        transcriptionModel: "ivrit-ai/whisper-large-v3-turbo-ct2",
+        transcriptionProvider: "whisper",
+        transcriptionModel: "whisper-1",
         summaryModel: "gpt-4o-mini",
       });
 
@@ -296,10 +296,10 @@ function NewConversationContent() {
     e.preventDefault();
     setIsDragActive(false);
     const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith("audio/")) {
+    if (file && (file.type.startsWith("audio/") || file.name.endsWith(".txt"))) {
       handleFileSelect(file);
     } else {
-      setError("אנא בחר קובץ אודיו תקין");
+      setError("אנא בחר קובץ אודיו או טקסט תקין");
     }
   };
 
@@ -334,8 +334,8 @@ function NewConversationContent() {
         uploadId: uploadResponse.uploadId,
         context: context.trim() || "פגישה",
         participants: participants.trim() ? participants.split(",").map((p) => p.trim()).filter(Boolean) : undefined,
-        transcriptionProvider: "ivrit",
-        transcriptionModel: "ivrit-ai/whisper-large-v3-turbo-ct2",
+        transcriptionProvider: "whisper",
+        transcriptionModel: "whisper-1",
         summaryModel: "gpt-4o-mini",
       });
 
@@ -638,7 +638,7 @@ function NewConversationContent() {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="audio/*"
+                    accept="audio/*,.txt"
                     onChange={handleFileInputChange}
                     className="hidden"
                   />
@@ -648,10 +648,10 @@ function NewConversationContent() {
                     </svg>
                   </div>
                   <p className="text-[15px] font-medium text-[#1F2937] mb-1">
-                    גרור ושחרר קובץ אודיו או <span className="text-[#2B3A67]">לחץ לבחירה</span>
+                    גרור ושחרר קובץ אודיו או תמלול או <span className="text-[#2B3A67]">לחץ לבחירה</span>
                   </p>
                   <p className="text-[13px] text-[#6B7280]">
-                    תומך ב-MP3, M4A, WAV, FLAC עד 100MB
+                    תומך ב-MP3, M4A, WAV, FLAC עד 100MB או קובץ תמלול TXT
                   </p>
                 </div>
               ) : (
