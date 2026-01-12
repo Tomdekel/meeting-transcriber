@@ -15,11 +15,11 @@ from app.schemas.settings import (
 import sys
 from pathlib import Path
 
-# Add parent directory to path
+# Add parent directory to path (for lazy imports of transcription modules)
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent.parent))
 
-from src.transcription.whisper import WhisperTranscriber
-# from src.transcription.ivrit import IvritTranscriber  # TODO: Implement
+# Lazy import: WhisperTranscriber imported only when needed in test_connection endpoint
+# This allows the app to start without src/ dependencies for text-only imports
 
 router = APIRouter()
 
@@ -155,6 +155,9 @@ async def test_connection(request: TestConnectionRequest):
     """
     try:
         if request.provider.lower() == "whisper":
+            # Lazy import for WhisperTranscriber (only needed for audio transcription)
+            from src.transcription.whisper import WhisperTranscriber
+
             transcriber = WhisperTranscriber(
                 api_key=request.apiKey,
                 model=request.model or "whisper-1"
