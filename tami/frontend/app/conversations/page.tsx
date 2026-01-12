@@ -1,15 +1,79 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { listSessions, deleteSession, updateSession, Session } from "@/lib/api";
+import { AppLayout } from "@/components/layout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Search,
+  Plus,
+  Upload,
+  Mic,
+  Calendar,
+  Languages,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  Loader2,
+  MessageSquare,
+  ChevronLeft,
+  AlertTriangle,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function ConversationsPage() {
+  return (
+    <Suspense fallback={<ConversationsLoading />}>
+      <ConversationsContent />
+    </Suspense>
+  );
+}
+
+function ConversationsLoading() {
+  return (
+    <AppLayout>
+      <div className="space-y-6">
+        <div className="h-8 bg-muted rounded w-48 animate-pulse" />
+        <div className="h-10 bg-muted rounded animate-pulse" />
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="p-6 animate-pulse">
+              <div className="h-5 bg-muted rounded w-2/3 mb-3" />
+              <div className="h-4 bg-muted rounded w-1/2" />
+            </Card>
+          ))}
+        </div>
+      </div>
+    </AppLayout>
+  );
+}
+
+function ConversationsContent() {
   const router = useRouter();
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [filteredSessions, setFilteredSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [deletingSession, setDeletingSession] = useState<Session | null>(null);
   const [editingSession, setEditingSession] = useState<Session | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -23,6 +87,22 @@ export default function ConversationsPage() {
       setEditTitle(editingSession.title || editingSession.audioFileName);
     }
   }, [editingSession]);
+
+  // Filter sessions based on search query
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredSessions(sessions);
+    } else {
+      const query = searchQuery.toLowerCase();
+      const filtered = sessions.filter(
+        (session) =>
+          session.title?.toLowerCase().includes(query) ||
+          session.audioFileName?.toLowerCase().includes(query) ||
+          session.context?.toLowerCase().includes(query)
+      );
+      setFilteredSessions(filtered);
+    }
+  }, [searchQuery, sessions]);
 
   const loadSessions = async () => {
     try {
@@ -41,30 +121,28 @@ export default function ConversationsPage() {
     switch (status) {
       case "completed":
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-full bg-green-50 text-green-700">
+          <Badge variant="outline" className="status-completed border-0">
             הושלם
-          </span>
+          </Badge>
         );
       case "processing":
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-full bg-blue-50 text-blue-700">
-            <svg className="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
+          <Badge variant="outline" className="status-processing border-0">
+            <Loader2 className="w-3 h-3 me-1 animate-spin" />
             מעבד
-          </span>
+          </Badge>
         );
       case "failed":
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-full bg-red-50 text-red-700">
+          <Badge variant="outline" className="status-failed border-0">
             נכשל
-          </span>
+          </Badge>
         );
       case "pending":
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-full bg-amber-50 text-amber-700">
+          <Badge variant="outline" className="status-pending border-0">
             ממתין
-          </span>
+          </Badge>
         );
       default:
         return null;
@@ -86,7 +164,7 @@ export default function ConversationsPage() {
 
     return date.toLocaleDateString("he-IL", {
       year: "numeric",
-      month: "long",
+      month: "short",
       day: "numeric",
     });
   };
@@ -116,280 +194,246 @@ export default function ConversationsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F7FA] flex flex-col" dir="rtl">
-      <main className="max-w-[1100px] mx-auto px-8 py-6 flex flex-col flex-1 gap-8 w-full">
+    <AppLayout>
+      <div className="space-y-6">
         {/* Header */}
-        <header className="flex justify-between items-center gap-4 flex-wrap">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-[26px] font-bold text-[#111827]">השיחות שלך</h1>
-            <p className="text-[14px] text-[#6B7280] mt-1">כל התמלולים והסיכומים שלך יופיעו כאן.</p>
+            <h1 className="text-2xl font-bold">השיחות שלך</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              כל התמלולים והסיכומים שלך יופיעו כאן
+            </p>
           </div>
-          <div className="flex gap-[10px] flex-wrap">
-            <Link
-              href="/conversations/new"
-              className="h-[40px] px-[18px] bg-[#2B3A67] hover:bg-[#243053] text-white font-medium rounded-full transition-colors inline-flex items-center"
-            >
-              שיחה חדשה
-            </Link>
-            <Link
-              href="/conversations/new?mode=upload"
-              className="h-[40px] px-[16px] bg-transparent border border-[#E5E7EB] hover:border-[#9CA3AF] text-[#111827] font-medium rounded-full transition-colors inline-flex items-center"
-            >
-              העלה הקלטה
-            </Link>
+          <div className="flex gap-2">
+            <Button variant="outline" asChild>
+              <Link href="/conversations/new?mode=upload">
+                <Upload className="h-4 w-4 me-2" />
+                העלה הקלטה
+              </Link>
+            </Button>
+            <Button className="gradient-accent text-white" asChild>
+              <Link href="/conversations/new">
+                <Plus className="h-4 w-4 me-2" />
+                שיחה חדשה
+              </Link>
+            </Button>
           </div>
-        </header>
+        </div>
+
+        {/* Search Bar */}
+        <div className="relative">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="חפש בשיחות..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pr-10"
+          />
+        </div>
 
         {/* Loading State */}
         {loading && (
           <div className="space-y-4">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div
-                key={i}
-                className="bg-white rounded-[12px] p-6 animate-pulse"
-                style={{ boxShadow: '0 14px 34px rgba(15, 23, 42, 0.08)' }}
-              >
-                <div className="h-5 bg-[#E5E7EB] rounded w-2/3 mb-3"></div>
-                <div className="h-4 bg-[#E5E7EB] rounded w-1/2 mb-3"></div>
-                <div className="h-3 bg-[#E5E7EB] rounded w-1/4"></div>
-              </div>
+              <Card key={i} className="p-6 animate-pulse">
+                <div className="h-5 bg-muted rounded w-2/3 mb-3"></div>
+                <div className="h-4 bg-muted rounded w-1/2 mb-3"></div>
+                <div className="h-3 bg-muted rounded w-1/4"></div>
+              </Card>
             ))}
           </div>
         )}
 
         {/* Error State */}
         {error && !loading && (
-          <div className="bg-red-50 border border-red-200 rounded-[8px] p-4 mb-6">
+          <Card className="p-4 border-destructive/50 bg-destructive/10">
             <div className="flex items-center justify-between">
-              <p className="text-[14px] text-red-700">{error}</p>
-              <button
-                onClick={loadSessions}
-                className="text-[13px] text-red-700 hover:underline"
-              >
+              <p className="text-sm text-destructive">{error}</p>
+              <Button variant="ghost" size="sm" onClick={loadSessions}>
                 נסה שוב
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
         )}
 
         {/* Empty State */}
         {!loading && !error && sessions.length === 0 && (
-          <section className="flex-1 flex items-center justify-center">
-            <div
-              className="bg-white rounded-[12px] p-8 max-w-[520px] w-full text-center flex flex-col gap-4"
-              style={{ boxShadow: '0 14px 34px rgba(15, 23, 42, 0.08)' }}
-            >
-              {/* Icon Circle */}
-              <div className="w-[56px] h-[56px] mx-auto mb-1 bg-[#EEF2FF] rounded-full flex items-center justify-center text-[28px]">
-                🎙️
-              </div>
-
-              {/* Title */}
-              <h2 className="text-[20px] font-semibold text-[#111827]">
-                עדיין אין שיחות בתמי
-              </h2>
-
-              {/* Body Text */}
-              <p className="text-[14px] text-[#6B7280] leading-[1.6]">
-                תמי שומרת בשבילך את כל מה שנאמר בפגישות החשובות.
-                כדי להתחיל, תוכל להקליט שיחה חדשה או להעלות הקלטה קיימת.
-              </p>
-
-              {/* Action Buttons */}
-              <div className="flex gap-3 justify-center mt-2">
-                <Link
-                  href="/conversations/new"
-                  className="min-w-[170px] h-[42px] px-5 bg-[#2B3A67] hover:bg-[#243053] text-white font-semibold rounded-full transition-colors inline-flex items-center justify-center"
-                >
+          <Card className="p-8 text-center">
+            <div className="w-14 h-14 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
+              <MessageSquare className="h-7 w-7 text-primary" />
+            </div>
+            <h2 className="text-xl font-semibold mb-2">עדיין אין שיחות</h2>
+            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+              תמי שומרת בשבילך את כל מה שנאמר בפגישות החשובות. התחל להקליט או להעלות
+              הקלטה קיימת.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <Button className="gradient-accent text-white" asChild>
+                <Link href="/conversations/new">
+                  <Mic className="h-4 w-4 me-2" />
                   שיחה חדשה
                 </Link>
-                <Link
-                  href="/conversations/new?mode=upload"
-                  className="min-w-[160px] h-[42px] px-5 bg-transparent border border-[#E5E7EB] hover:border-[#9CA3AF] text-[#6B7280] font-medium rounded-full transition-colors inline-flex items-center justify-center"
-                >
-                  העלה הקלטה קיימת
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/conversations/new?mode=upload">
+                  <Upload className="h-4 w-4 me-2" />
+                  העלה הקלטה
                 </Link>
-              </div>
-
-              {/* Helper Text */}
-              <p className="text-[12px] text-[#6B7280] mt-1">
-                לדוגמה: פגישת צוות, שיחה עם לקוח, ראיון מועמד או שיחת זום חשובה.
-              </p>
+              </Button>
             </div>
-          </section>
+          </Card>
         )}
 
+        {/* No Search Results */}
+        {!loading &&
+          !error &&
+          sessions.length > 0 &&
+          filteredSessions.length === 0 && (
+            <Card className="p-8 text-center">
+              <Search className="h-10 w-10 mx-auto mb-4 text-muted-foreground" />
+              <h2 className="text-lg font-semibold mb-2">לא נמצאו תוצאות</h2>
+              <p className="text-muted-foreground">
+                נסה לחפש במילים אחרות
+              </p>
+            </Card>
+          )}
+
         {/* Sessions List */}
-        {!loading && !error && sessions.length > 0 && (
-          <div className="space-y-4">
-            {sessions.map((session) => (
-              <Link
-                key={session.id}
-                href={`/session/${session.id}`}
-                className="block bg-white rounded-[12px] p-6 hover:shadow-lg transition-shadow"
-                style={{ boxShadow: '0 14px 34px rgba(15, 23, 42, 0.08)' }}
-              >
-                <div className="flex items-start gap-4">
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    {/* Title Row */}
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-[16px] font-semibold text-[#1F2937] truncate">
-                        {session.title || session.audioFileName || "שיחה ללא כותרת"}
-                      </h3>
-                      {getStatusBadge(session.status)}
+        {!loading && !error && filteredSessions.length > 0 && (
+          <div className="space-y-2">
+            {filteredSessions.map((session) => (
+              <Link key={session.id} href={`/session/${session.id}`}>
+                <Card className="p-3 hover:shadow-md transition-all cursor-pointer group hover:border-primary/30">
+                  <div className="flex items-center justify-between gap-3">
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      {/* Title Row */}
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <h3 className="font-medium truncate group-hover:text-primary transition-colors">
+                          {session.title || session.context || session.audioFileName?.replace(/\.[^/.]+$/, '') || "שיחה חדשה"}
+                        </h3>
+                        {getStatusBadge(session.status)}
+                      </div>
+
+                      {/* Context & Meta on same line */}
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        {session.context && session.title && (
+                          <span className="truncate max-w-[200px]">
+                            {session.context}
+                          </span>
+                        )}
+                        <span className="flex items-center gap-1 shrink-0">
+                          <Calendar className="h-3 w-3" />
+                          {formatDate(session.createdAt)}
+                        </span>
+                      </div>
                     </div>
 
-                    {/* Summary/Context */}
-                    {session.context && (
-                      <p className="text-[14px] text-[#6B7280] mb-3 line-clamp-2">
-                        {session.context}
-                      </p>
-                    )}
-
-                    {/* Meta Row */}
-                    <div className="flex items-center gap-4 text-[12px] text-[#9CA3AF]">
-                      <span className="flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        {formatDate(session.createdAt)}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
-                        </svg>
-                        עברית
-                      </span>
+                    {/* Actions */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => e.preventDefault()}
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setEditingSession(session);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4 me-2" />
+                            ערוך שם
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setDeletingSession(session);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 me-2" />
+                            מחק
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <ChevronLeft className="h-4 w-4 text-muted-foreground/50 group-hover:text-primary transition-colors" />
                     </div>
                   </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-1">
-                    {/* Edit */}
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setEditingSession(session);
-                      }}
-                      className="p-2 text-[#9CA3AF] hover:text-[#1F2937] transition-colors rounded-lg hover:bg-[#F7F8FA]"
-                      title="ערוך שם"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-
-                    {/* Delete */}
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setDeletingSession(session);
-                      }}
-                      className="p-2 text-[#9CA3AF] hover:text-red-600 transition-colors rounded-lg hover:bg-red-50"
-                      title="מחק"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-
-                    {/* Arrow */}
-                    <svg className="w-5 h-5 text-[#9CA3AF] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
-                    </svg>
-                  </div>
-                </div>
+                </Card>
               </Link>
             ))}
           </div>
         )}
 
         {/* Sessions Count */}
-        {!loading && !error && sessions.length > 0 && (
-          <div className="mt-8 text-center">
-            <p className="text-[13px] text-[#9CA3AF]">
-              מציג {sessions.length} {sessions.length === 1 ? "שיחה" : "שיחות"}
-            </p>
-          </div>
+        {!loading && !error && filteredSessions.length > 0 && (
+          <p className="text-center text-xs text-muted-foreground">
+            מציג {filteredSessions.length} מתוך {sessions.length}{" "}
+            {sessions.length === 1 ? "שיחה" : "שיחות"}
+          </p>
         )}
+      </div>
 
-        {/* Edit Modal */}
-        {editingSession && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div
-              className="bg-white rounded-[12px] p-6 max-w-md w-full"
-              style={{ boxShadow: '0 14px 34px rgba(15, 23, 42, 0.08)' }}
-            >
-              <h3 className="text-[18px] font-semibold text-[#1F2937] mb-4">ערוך שם שיחה</h3>
-              <input
-                type="text"
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                className="w-full h-[44px] px-3 rounded-[8px] border border-[#E5E7EB] bg-white text-[#1F2937] focus:outline-none focus:ring-2 focus:ring-[#2B3A67] focus:border-transparent mb-4"
-                placeholder="שם השיחה..."
-                autoFocus
-              />
-              <div className="flex gap-3">
-                <button
-                  onClick={handleSaveEdit}
-                  className="flex-1 h-[44px] bg-[#2B3A67] hover:bg-[#1F2937] text-white font-medium rounded-[8px] transition-colors"
-                >
-                  שמור
-                </button>
-                <button
-                  onClick={() => setEditingSession(null)}
-                  className="flex-1 h-[44px] bg-white border border-[#E5E7EB] hover:border-[#9CA3AF] text-[#1F2937] font-medium rounded-[8px] transition-colors"
-                >
-                  ביטול
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+      {/* Edit Dialog */}
+      <Dialog
+        open={!!editingSession}
+        onOpenChange={(open) => !open && setEditingSession(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>ערוך שם שיחה</DialogTitle>
+          </DialogHeader>
+          <Input
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            placeholder="שם השיחה..."
+            autoFocus
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingSession(null)}>
+              ביטול
+            </Button>
+            <Button onClick={handleSaveEdit}>שמור</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-        {/* Delete Confirmation Modal */}
-        {deletingSession && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div
-              className="bg-white rounded-[12px] p-6 max-w-md w-full"
-              style={{ boxShadow: '0 14px 34px rgba(15, 23, 42, 0.08)' }}
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="text-[18px] font-semibold text-[#1F2937]">למחוק שיחה?</h3>
-                  <p className="text-[13px] text-[#6B7280]">פעולה זו אינה ניתנת לביטול</p>
-                </div>
-              </div>
-              <p className="text-[14px] text-[#6B7280] mb-6">
-                האם את/ה בטוח/ה שברצונך למחוק את &quot;{deletingSession.title || deletingSession.audioFileName}&quot;?
-                פעולה זו תמחק לצמיתות את התמלול, הסיכום וכל המידע הקשור.
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={handleDelete}
-                  className="flex-1 h-[44px] bg-red-600 hover:bg-red-700 text-white font-medium rounded-[8px] transition-colors"
-                >
-                  מחק
-                </button>
-                <button
-                  onClick={() => setDeletingSession(null)}
-                  className="flex-1 h-[44px] bg-white border border-[#E5E7EB] hover:border-[#9CA3AF] text-[#1F2937] font-medium rounded-[8px] transition-colors"
-                >
-                  ביטול
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
-    </div>
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={!!deletingSession}
+        onOpenChange={(open) => !open && setDeletingSession(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              למחוק שיחה?
+            </DialogTitle>
+            <DialogDescription>
+              האם את/ה בטוח/ה שברצונך למחוק את &quot;
+              {deletingSession?.title || deletingSession?.audioFileName}&quot;?
+              פעולה זו תמחק לצמיתות את התמלול, הסיכום וכל המידע הקשור.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeletingSession(null)}>
+              ביטול
+            </Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              מחק
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </AppLayout>
   );
 }

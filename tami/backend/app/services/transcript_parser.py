@@ -3,25 +3,10 @@
 import re
 from pathlib import Path
 from typing import List, Dict, Any
-from dataclasses import dataclass, field
+from lib.utils.models import TranscriptSegment, TranscriptResult
 from loguru import logger
 
 
-@dataclass
-class TranscriptSegment:
-    """A single segment of transcribed audio."""
-    speaker: str
-    text: str
-    start_time: float
-    end_time: float
-
-
-@dataclass
-class TranscriptResult:
-    """Complete transcription result."""
-    segments: List[TranscriptSegment]
-    language: str
-    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 class TranscriptParser:

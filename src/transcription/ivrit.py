@@ -17,7 +17,8 @@ class IvritTranscriber(BaseTranscriber):
         self,
         api_key: str,
         endpoint_id: str,
-        model: Optional[str] = "ivrit-ai/whisper-large-v3-turbo-ct2"
+        model: Optional[str] = "ivrit-ai/whisper-large-v3-turbo-ct2",
+        language: Optional[str] = "he"
     ):
         """Initialize Ivrit transcriber.
 
@@ -25,11 +26,13 @@ class IvritTranscriber(BaseTranscriber):
             api_key: RunPod API key
             endpoint_id: RunPod endpoint ID
             model: Ivrit model name (default: whisper-large-v3-turbo-ct2)
+            language: Language code for transcription (default: "he" for Hebrew)
         """
         super().__init__(api_key, model)
         self.endpoint_id = endpoint_id
+        self.language = language or "he"  # Default to Hebrew if None
         self.ivrit_model = None
-        logger.info(f"Initialized Ivrit transcriber with model {model}")
+        logger.info(f"Initialized Ivrit transcriber with model {model}, language {self.language}")
 
     def _initialize_model(self):
         """Lazy-load the Ivrit model."""
@@ -74,7 +77,7 @@ class IvritTranscriber(BaseTranscriber):
             # Transcribe with diarization enabled
             result = self.ivrit_model.transcribe(
                 path=str(audio_path),
-                language="he",  # Hebrew
+                language=self.language,  # Use configured language
                 diarize=True,   # Enable speaker diarization
                 word_timestamps=False,  # Disable to reduce payload
                 extra_data=False  # Disable to reduce payload
@@ -98,8 +101,8 @@ class IvritTranscriber(BaseTranscriber):
                 )
                 segments.append(segment)
 
-            # Get detected language (should be Hebrew)
-            detected_language = result.get('language', 'he')
+            # Get detected language from result or use configured language
+            detected_language = result.get('language', self.language)
 
             logger.info(f"Successfully transcribed with {len(segments)} segments")
 

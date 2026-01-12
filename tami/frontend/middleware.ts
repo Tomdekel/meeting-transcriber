@@ -2,12 +2,20 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
+// Skip auth - set to true to allow direct access without login
+const SKIP_AUTH = true
+
 export async function middleware(req: NextRequest) {
   let response = NextResponse.next({
     request: {
       headers: req.headers,
     },
   })
+
+  // Skip all auth checks in development
+  if (SKIP_AUTH) {
+    return response
+  }
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

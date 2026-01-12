@@ -4,6 +4,12 @@ generator client {
   provider = "prisma-client-js"
 }
 
+generator python {
+  provider             = "prisma-client-py"
+  interface            = "asyncio"
+  recursive_type_depth = 5
+}
+
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
@@ -11,12 +17,25 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                  String   @id @default(uuid())
+  email               String   @unique
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Billing fields
+  stripeCustomerId    String?  @unique
+  subscriptionId      String?
+  subscriptionStatus  String   @default("free") // "free", "pro", "cancelled"
+  monthlyMinutesUsed  Float    @default(0)
+  monthlySessionCount Int      @default(0)
+  usageResetAt        DateTime @default(now())
+
+  // Relations
   sessions  Session[]
   settings  UserSettings?
+  entities  Entity[]
+  tags      Tag[]
+  usageLogs UsageLog[]
 }
 
 model UserSettings {
@@ -31,20 +50,23 @@ model UserSettings {
 }
 
 model Session {
-  id               String        @id @default(uuid())
+  id               String          @id @default(uuid())
   userId           String
-  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title            String?       // Optional custom title for the session
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title            String?         // Optional custom title for the session
   audioFileName    String
   audioFileUrl     String
   context          String
-  language         String        @default("he") // Hebrew default
-  status           String        @default("pending") // pending, processing, completed, failed
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  language         String          @default("he") // Hebrew default (user preference)
+  detectedLanguage String?         // Auto-detected language from audio
+  status           String          @default("pending") // pending, processing, completed, failed
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
   transcript       Transcript?
   summary          Summary?
   chatMessages     ChatMessage[]
+  entityMentions   EntityMention[]
+  tags             SessionTag[]
 }
 
 model Transcript {
@@ -100,4 +122,79 @@ model ChatMessage {
   createdAt DateTime @default(now())
 
   @@index([sessionId, createdAt])
+}
+
+// Entity extraction models
+model Entity {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type            String   // "person", "organization", "project", "date", "time", "price", "location", "deliverable", "decision"
+  value           String   // The extracted value
+  normalizedValue String?  // For deduplication (lowercase, trimmed)
+  firstSeenAt     DateTime @default(now())
+  lastSeenAt      DateTime @updatedAt
+  mentionCount    Int      @default(1)
+
+  mentions        EntityMention[]
+
+  @@unique([userId, type, normalizedValue])
+  @@index([userId, type])
+  @@index([userId, value])
+}
+
+model EntityMention {
+  id        String   @id @default(cuid())
+  entityId  String
+  entity    Entity   @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  context   String?  @db.Text // Surrounding text for context
+  createdAt DateTime @default(now())
+
+  @@index([entityId])
+  @@index([sessionId])
+}
+
+// Tagging models
+model Tag {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  color     String?  @default("#6B7280")
+  source    String   @default("manual") // "manual" | "auto:person" | "auto:organization" | "auto:project"
+  isVisible Boolean  @default(true)     // false for auto-generated tags
+  createdAt DateTime @default(now())
+
+  sessions  SessionTag[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@index([userId, source])
+}
+
+model SessionTag {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  tagId     String
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([sessionId, tagId])
+  @@index([sessionId])
+  @@index([tagId])
+}
+
+// Usage tracking for billing
+model UsageLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId String
+  minutes   Float
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }

@@ -18,41 +18,20 @@ const config: Config = {
     },
     extend: {
       colors: {
-        // Monday.com inspired color palette
-        primary: {
-          DEFAULT: "#0085FF",
-          hover: "#0073E6",
-          light: "#E5F3FF",
-        },
-        success: {
-          DEFAULT: "#00CA72",
-          light: "#E5F8F0",
-        },
-        warning: {
-          DEFAULT: "#FFCB00",
-          light: "#FFF9E5",
-        },
-        error: {
-          DEFAULT: "#E44258",
-          light: "#FFE5E9",
-        },
-        background: "#F6F7FB",
-        surface: "#FFFFFF",
-        text: {
-          primary: "#323338",
-          secondary: "#676879",
-          tertiary: "#9699A6",
-        },
-        border: "#D0D4E4",
-        // shadcn/ui compatibility (background already defined above as "#F6F7FB")
+        background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
-        card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))",
+        sidebar: {
+          DEFAULT: "hsl(var(--sidebar))",
+          foreground: "hsl(var(--sidebar-foreground))",
+          accent: "hsl(var(--sidebar-accent))",
         },
-        popover: {
-          DEFAULT: "hsl(var(--popover))",
-          foreground: "hsl(var(--popover-foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",
@@ -66,8 +45,17 @@ const config: Config = {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
         },
+        border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
         chart: {
           "1": "hsl(var(--chart-1))",
           "2": "hsl(var(--chart-2))",
@@ -75,10 +63,28 @@ const config: Config = {
           "4": "hsl(var(--chart-4))",
           "5": "hsl(var(--chart-5))",
         },
+        status: {
+          success: "hsl(var(--status-success))",
+          warning: "hsl(var(--status-warning))",
+          error: "hsl(var(--status-error))",
+          pending: "hsl(var(--status-pending))",
+          processing: "hsl(var(--status-processing))",
+        },
+        entity: {
+          person: "hsl(var(--entity-person))",
+          organization: "hsl(var(--entity-organization))",
+          project: "hsl(var(--entity-project))",
+          date: "hsl(var(--entity-date))",
+          time: "hsl(var(--entity-time))",
+          location: "hsl(var(--entity-location))",
+          price: "hsl(var(--entity-price))",
+          deliverable: "hsl(var(--entity-deliverable))",
+          decision: "hsl(var(--entity-decision))",
+        },
       },
       fontFamily: {
-        sans: ['var(--font-inter)', 'var(--font-rubik)', 'system-ui', 'sans-serif'],
-        mono: ['var(--font-jetbrains-mono)', 'monospace'],
+        sans: ["var(--font-rubik)", "var(--font-inter)", "system-ui", "sans-serif"],
+        mono: ["var(--font-jetbrains-mono)", "monospace"],
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -101,10 +107,7 @@ const config: Config = {
       },
     },
   },
-  plugins: [
-    require("tailwindcss-animate"),
-    require("tailwindcss-rtl"),
-  ],
+  plugins: [require("tailwindcss-animate"), require("tailwindcss-rtl")],
 };
 
 export default config;

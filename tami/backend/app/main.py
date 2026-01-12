@@ -6,8 +6,10 @@ from loguru import logger
 
 from app.core.config import settings
 from app.db import connect_db, disconnect_db
-from app.api.routes import upload, transcribe, sessions, chat, record
+from app.api.routes import upload, transcribe, sessions, chat, record, entities, tags, search
 from app.api.routes import settings as settings_router
+# Billing disabled for early users - uncomment when ready:
+# from app.api.routes import billing
 
 # Create FastAPI app
 app = FastAPI(
@@ -77,6 +79,11 @@ app.include_router(sessions.router, prefix="/api", tags=["sessions"])
 app.include_router(chat.router, prefix="/api", tags=["chat"])
 app.include_router(record.router, prefix="/api", tags=["record"])
 app.include_router(settings_router.router, prefix="/api", tags=["settings"])
+app.include_router(entities.router, prefix="/api", tags=["entities"])
+app.include_router(tags.router, prefix="/api", tags=["tags"])
+app.include_router(search.router, prefix="/api", tags=["search"])
+# Billing disabled for early users - uncomment when ready:
+# app.include_router(billing.router, prefix="/api", tags=["billing"])
 
 
 if __name__ == "__main__":

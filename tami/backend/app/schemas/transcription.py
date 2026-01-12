@@ -97,10 +97,11 @@ class TranscriptionRequest(BaseModel):
     uploadId: str
     context: str
     participants: Optional[List[str]] = None
-    transcriptionProvider: str = "whisper"
+    transcriptionProvider: str = "auto"  # "auto", "whisper", or "ivrit"
     transcriptionModel: str = "whisper-1"
     summaryModel: str = "gpt-4o-mini"
     userId: Optional[str] = None
+    autoDetectLanguage: bool = True  # Enable automatic language detection and routing
 
 
 class TranscriptionStatusResponse(BaseModel):
@@ -109,6 +110,7 @@ class TranscriptionStatusResponse(BaseModel):
     status: str
     audioFileName: Optional[str] = None
     audioFileUrl: Optional[str] = None
+    detectedLanguage: Optional[str] = None  # Detected language code
     transcript: Optional[TranscriptResponse] = None
     summary: Optional[SummaryResponse] = None
     error: Optional[str] = None

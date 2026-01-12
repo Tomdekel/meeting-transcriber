@@ -226,6 +226,46 @@ backend/
 
 ## Development
 
+### Testing with sample audio
+
+For development and testing, use the sample Hebrew audio file:
+
+```bash
+# Test file location
+/Users/tomdekel/meeting-transcriber/Ori AUI 2 copy.m4a
+```
+
+This file is a ~4.5 minute Hebrew interview recording that can be used to verify:
+- Audio upload functionality
+- Transcription with Whisper provider
+- Hebrew language detection
+- Transcript refinement with GPT-4o
+- Summary generation
+- Entity extraction
+
+**Quick test via API:**
+```bash
+# 1. Upload the file
+curl -X POST http://localhost:8000/api/upload \
+  -F "file=@/Users/tomdekel/meeting-transcriber/Ori AUI 2 copy.m4a"
+
+# 2. Start transcription (use uploadId from response)
+curl -X POST http://localhost:8000/api/transcribe \
+  -H "Content-Type: application/json" \
+  -d '{
+    "uploadId": "<uploadId>",
+    "userId": "dev-user-local-testing",
+    "context": "Product Role Interview at AUI",
+    "participants": ["Ori", "Tom"],
+    "transcriptionProvider": "whisper",
+    "transcriptionModel": "whisper-1",
+    "summaryModel": "gpt-4o-mini"
+  }'
+
+# 3. Check status (use sessionId from response)
+curl http://localhost:8000/api/transcribe/<sessionId>/status
+```
+
 ### Running tests
 
 ```bash

@@ -8,8 +8,8 @@ from loguru import logger
 # Add parent directory to path to import from meeting-transcriber
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent.parent))
 
-from src.chat.chatbot import Chatbot
-from src.utils.models import TranscriptResult, Summary
+from lib.chat.chatbot import Chatbot
+from lib.utils.models import TranscriptResult, Summary
 
 
 class ChatService:

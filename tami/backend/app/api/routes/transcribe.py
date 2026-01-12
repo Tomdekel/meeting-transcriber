@@ -17,7 +17,8 @@ from app.schemas.transcription import (
     TranscriptSegmentResponse,
     ActionItemResponse
 )
-from app.services.transcription import transcription_service
+# Lazy import transcription_service only when needed (for audio files)
+# This allows text imports to work without the src/ dependencies
 from app.services.summarization import summarization_service
 from app.services.refinement import get_refinement_service
 from app.services.entity_extraction import get_entity_extraction_service
@@ -88,6 +89,9 @@ async def process_transcription(
         elif auto_detect_language and provider == "auto":
             logger.info("Using automatic language detection and ASR routing")
 
+            # Import transcription service (lazy import for audio files only)
+            from app.services.transcription import transcription_service
+
             # Use auto-routing: detect language and route to appropriate provider
             openai_key = settings.OPENAI_API_KEY or api_key
             ivrit_key = settings.IVRIT_API_KEY
@@ -112,6 +116,9 @@ async def process_transcription(
         else:
             # Use explicitly specified provider
             logger.info(f"Using explicit provider: {provider}")
+
+            # Import transcription service (lazy import for audio files only)
+            from app.services.transcription import transcription_service
 
             # Get endpoint_id from settings if using Ivrit provider
             endpoint_id = settings.IVRIT_ENDPOINT_ID if provider.lower() == "ivrit" else None

@@ -283,8 +283,8 @@ function LiveRecordContent() {
         uploadId: uploadResponse.uploadId,
         context: context.trim() || "פגישה",
         participants: participants.trim() ? participants.split(",").map((p) => p.trim()).filter(Boolean) : undefined,
-        transcriptionProvider: "ivrit",
-        transcriptionModel: "ivrit-ai/whisper-large-v3-turbo-ct2",
+        transcriptionProvider: "whisper",
+        transcriptionModel: "whisper-1",
         summaryModel: "gpt-4o-mini",
       });
 

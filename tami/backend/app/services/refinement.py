@@ -9,7 +9,7 @@ from openai import AsyncOpenAI
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent.parent))
 
-from src.utils.models import TranscriptResult, TranscriptSegment
+from lib.utils.models import TranscriptResult, TranscriptSegment
 
 
 class TranscriptRefinementService:

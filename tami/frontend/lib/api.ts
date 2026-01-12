@@ -7,6 +7,10 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ||
     ? "https://backend-seven-brown-94.vercel.app"
     : "http://localhost:8000");
 
+// Development mode - skip auth
+const IS_DEV = process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_SKIP_AUTH === 'true';
+const DEV_USER_ID = "dev-user-local-testing";
+
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -15,8 +19,13 @@ const apiClient: AxiosInstance = axios.create({
   },
 });
 
-// Add auth token to all requests
+// Add auth token to all requests (skip in dev mode)
 apiClient.interceptors.request.use(async (config) => {
+  if (IS_DEV) {
+    // In dev mode, add user_id as query param for endpoints that need it
+    return config
+  }
+
   const { data: { session } } = await supabase.auth.getSession()
 
   if (session?.access_token) {
@@ -25,6 +34,15 @@ apiClient.interceptors.request.use(async (config) => {
 
   return config
 })
+
+// Helper to get current user ID (real or dev mock)
+export async function getCurrentUserId(): Promise<string> {
+  if (IS_DEV) {
+    return DEV_USER_ID;
+  }
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.user?.id || DEV_USER_ID;
+}
 
 // Types
 export interface UploadResponse {
@@ -121,6 +139,67 @@ export interface UserSettings {
   chatModel: string;
 }
 
+// Search types
+export interface SearchResult {
+  id: string;
+  type: "session" | "entity";
+  title: string;
+  highlight?: string;
+  entityType?: string;
+  createdAt?: string;
+}
+
+export interface SearchResponse {
+  results: SearchResult[];
+  total: number;
+  query: string;
+}
+
+// Entity types
+export interface Entity {
+  id: string;
+  userId: string;
+  type: string;
+  value: string;
+  normalizedValue: string;
+  mentionCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EntityMention {
+  id: string;
+  entityId: string;
+  sessionId: string;
+  context: string;
+  createdAt: string;
+  session?: Session;
+}
+
+export interface EntityWithMentions extends Entity {
+  mentions: EntityMention[];
+}
+
+// Tag types
+export interface Tag {
+  id: string;
+  userId: string;
+  name: string;
+  color: string;
+  source: string;
+  isVisible: boolean;
+  createdAt: string;
+  updatedAt: string;
+  _count?: { sessions: number };
+}
+
+export interface SessionTag {
+  id: string;
+  sessionId: string;
+  tagId: string;
+  tag?: Tag;
+}
+
 // API functions
 
 /**
@@ -145,9 +224,11 @@ export async function uploadFile(file: File): Promise<UploadResponse> {
 export async function startTranscription(
   request: TranscriptionRequest
 ): Promise<TranscriptionStatusResponse> {
+  // Add userId for dev mode if not provided
+  const userId = request.userId || await getCurrentUserId();
   const response = await apiClient.post<TranscriptionStatusResponse>(
     "/api/transcribe",
-    request
+    { ...request, userId }
   );
   return response.data;
 }
@@ -172,7 +253,9 @@ export async function listSessions(params?: {
   page?: number;
   pageSize?: number;
 }): Promise<{ sessions: Session[]; total: number; page: number; pageSize: number }> {
-  const response = await apiClient.get("/api/sessions", { params });
+  // Add userId for dev mode if not provided
+  const userId = params?.userId || await getCurrentUserId();
+  const response = await apiClient.get("/api/sessions", { params: { ...params, userId } });
   return response.data;
 }
 
@@ -356,6 +439,188 @@ export async function getRecordingStatus(recordingId: string): Promise<{
 }> {
   const response = await apiClient.get(`/api/record/${recordingId}/status`);
   return response.data;
+}
+
+// ============================================
+// Search API
+// ============================================
+
+/**
+ * Global search across sessions and entities
+ */
+export async function searchGlobal(
+  query: string,
+  params?: { types?: string[]; limit?: number }
+): Promise<SearchResponse> {
+  const userId = await getCurrentUserId();
+  const response = await apiClient.get<SearchResponse>("/api/search", {
+    params: { query, userId, ...params },
+  });
+  return response.data;
+}
+
+/**
+ * Search within a specific session's transcript
+ */
+export async function searchSession(
+  sessionId: string,
+  query: string
+): Promise<{ matches: Array<{ segmentId: string; text: string; highlight: string }> }> {
+  const response = await apiClient.get(`/api/sessions/${sessionId}/search`, {
+    params: { query },
+  });
+  return response.data;
+}
+
+/**
+ * Get search suggestions
+ */
+export async function getSearchSuggestions(
+  query: string
+): Promise<{ suggestions: string[] }> {
+  const userId = await getCurrentUserId();
+  const response = await apiClient.get("/api/search/suggestions", {
+    params: { query, userId },
+  });
+  return response.data;
+}
+
+// ============================================
+// Entity API
+// ============================================
+
+/**
+ * List all entities for current user
+ */
+export async function listEntities(params?: {
+  type?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<{ entities: Entity[]; total: number }> {
+  const userId = await getCurrentUserId();
+  const response = await apiClient.get("/api/entities", {
+    params: { userId, ...params },
+  });
+  return response.data;
+}
+
+/**
+ * Get entity by ID with mentions
+ */
+export async function getEntity(entityId: string): Promise<EntityWithMentions> {
+  const userId = await getCurrentUserId();
+  const response = await apiClient.get<EntityWithMentions>(`/api/entities/${entityId}`, {
+    params: { userId },
+  });
+  return response.data;
+}
+
+/**
+ * Get entities for a specific session
+ */
+export async function getSessionEntities(sessionId: string): Promise<Entity[]> {
+  const userId = await getCurrentUserId();
+  const response = await apiClient.get<{ entities: Entity[]; total: number }>(`/api/sessions/${sessionId}/entities`, {
+    params: { userId },
+  });
+  return response.data.entities;
+}
+
+/**
+ * Delete an entity
+ */
+export async function deleteEntity(entityId: string): Promise<void> {
+  const userId = await getCurrentUserId();
+  await apiClient.delete(`/api/entities/${entityId}`, {
+    params: { userId },
+  });
+}
+
+// ============================================
+// Tag API
+// ============================================
+
+/**
+ * List all tags for current user
+ */
+export async function listTags(params?: {
+  includeHidden?: boolean;
+}): Promise<{ tags: Tag[] }> {
+  const userId = await getCurrentUserId();
+  const response = await apiClient.get("/api/tags", {
+    params: { userId, ...params },
+  });
+  return response.data;
+}
+
+/**
+ * Create a new tag
+ */
+export async function createTag(data: {
+  name: string;
+  color?: string;
+}): Promise<Tag> {
+  const userId = await getCurrentUserId();
+  const response = await apiClient.post<Tag>("/api/tags", data, {
+    params: { userId },
+  });
+  return response.data;
+}
+
+/**
+ * Update a tag
+ */
+export async function updateTag(
+  tagId: string,
+  data: { name?: string; color?: string; isVisible?: boolean }
+): Promise<Tag> {
+  const userId = await getCurrentUserId();
+  const response = await apiClient.patch<Tag>(`/api/tags/${tagId}`, data, {
+    params: { userId },
+  });
+  return response.data;
+}
+
+/**
+ * Delete a tag
+ */
+export async function deleteTag(tagId: string): Promise<void> {
+  const userId = await getCurrentUserId();
+  await apiClient.delete(`/api/tags/${tagId}`, {
+    params: { userId },
+  });
+}
+
+/**
+ * Get tags for a session
+ */
+export async function getSessionTags(sessionId: string): Promise<Tag[]> {
+  const userId = await getCurrentUserId();
+  const response = await apiClient.get<{ tags: Tag[]; total: number }>(`/api/sessions/${sessionId}/tags`, {
+    params: { userId },
+  });
+  return response.data.tags;
+}
+
+/**
+ * Add tag to session
+ */
+export async function addSessionTag(sessionId: string, tagId: string): Promise<void> {
+  const userId = await getCurrentUserId();
+  await apiClient.post(`/api/sessions/${sessionId}/tags`, null, {
+    params: { userId, tagId },
+  });
+}
+
+/**
+ * Remove tag from session
+ */
+export async function removeSessionTag(sessionId: string, tagId: string): Promise<void> {
+  const userId = await getCurrentUserId();
+  await apiClient.delete(`/api/sessions/${sessionId}/tags/${tagId}`, {
+    params: { userId },
+  });
 }
 
 // Error handler

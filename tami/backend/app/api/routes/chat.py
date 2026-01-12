@@ -14,7 +14,7 @@ from app.schemas.chat import (
     ChatStreamResponse
 )
 from app.services.chat import chat_service
-from src.utils.models import TranscriptResult, TranscriptSegment, Summary as SummaryModel, ActionItem
+from lib.utils.models import TranscriptResult, TranscriptSegment, Summary as SummaryModel, ActionItem
 
 router = APIRouter()
 
