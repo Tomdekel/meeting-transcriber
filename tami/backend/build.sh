@@ -3,11 +3,12 @@ set -e
 
 echo "Starting Vercel build process..."
 
-# Install dependencies (handled by Vercel automatically via requirements.txt)
+# Add node_modules/.bin to PATH for prisma command
+export PATH="$PATH:./node_modules/.bin"
 
 # Generate Prisma client from local schema
 # This will run both JS and Python generators defined in schema.prisma
 echo "Generating Prisma clients..."
-prisma generate --schema=prisma/schema.prisma
+npx prisma generate --schema=prisma/schema.prisma
 
 echo "Build complete!"
