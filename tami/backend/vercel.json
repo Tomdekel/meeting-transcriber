@@ -1,12 +1,10 @@
 {
   "version": 2,
+  "buildCommand": "bash build.sh",
   "builds": [
     {
       "src": "api/index.py",
-      "use": "@vercel/python",
-      "config": {
-        "buildCommand": "bash build.sh"
-      }
+      "use": "@vercel/python"
     }
   ],
   "routes": [
