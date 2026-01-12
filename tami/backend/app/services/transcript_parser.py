@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import List
 from loguru import logger
 
-from src.utils.models import TranscriptResult, TranscriptSegment
+from lib.utils.models import TranscriptResult, TranscriptSegment
 
 
 class TranscriptParser:
