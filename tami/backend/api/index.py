@@ -1,7 +1,17 @@
 """Vercel serverless entry point for FastAPI backend."""
 
-from mangum import Mangum
-from app.main import app
+import sys
+import traceback
 
-# Wrap FastAPI app with Mangum for serverless deployment
-handler = Mangum(app, lifespan="off")
+try:
+    from mangum import Mangum
+    from app.main import app
+
+    # Wrap FastAPI app with Mangum for serverless deployment
+    handler = Mangum(app, lifespan="off")
+
+    print("✓ Handler created successfully", file=sys.stderr)
+except Exception as e:
+    print(f"✗ Error creating handler: {e}", file=sys.stderr)
+    traceback.print_exc(file=sys.stderr)
+    raise
